@@ -22,6 +22,6 @@
 ./cleanup.sh
 
 autoscan || exit 1
-aclocal -I ./aclocal || exit 1
+aclocal || exit 1
 autoconf
 automake -ac --add-missing --foreign || exit 1
