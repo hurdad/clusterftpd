@@ -676,22 +676,29 @@ bool CFtpServer::CUserEntry::SetPrivileges( unsigned char ucPriv )
 
 CFtpServer::CUserEntry *CFtpServer::SearchUserFromLogin( const char *pszLogin )
 {
+	//init return var
+	CFtpServer::CUserEntry *pSearchUser = NULL;
 
-	redisContext *c = redisConnect("127.0.0.1", 6379);
-	if (c != NULL && c->err) {
-	    printf("Error: %s\n", c->errstr);
-	    // handle error
-	}
-
-
+	//check for login
 	if( pszLogin ) {
 
+		//connect to redis
+		redisContext *c = redisConnect("127.0.0.1", 6379);
+		if (c != NULL && c->err) {
+			//TODO convert to OnServerEvent
+			printf("Redis Error: %s\n", c->errstr);
+			return NULL;
+		}
+
+		//query user
 		redisReply* reply = (redisReply*)redisCommand(c, "HGETALL username:%s", pszLogin);
 
+		//check if user exist
 		if(reply->elements > 0){
 			std::map<std::string, std::string> user = redis_util::to_map<std::string>(reply);
 
-			CFtpServer::CUserEntry *pSearchUser = new CFtpServer::CUserEntry();
+			//build user obj
+			pSearchUser = new CFtpServer::CUserEntry();
 			strcpy( pSearchUser->szLogin, pszLogin);
 			strcpy( pSearchUser->szPassword, user["password"].c_str());
 			strcpy( pSearchUser->szStartDirectory, user["start_directory"].c_str());
@@ -699,10 +706,13 @@ CFtpServer::CUserEntry *CFtpServer::SearchUserFromLogin( const char *pszLogin )
 			pSearchUser->uiMaxNumberOfClient = atoi(user["max_logins"].c_str());
 			pSearchUser->ucPrivileges =  boost::lexical_cast<unsigned char>( user["privileges"].c_str());
 
-			return pSearchUser;
 		}
+		//close redis context
+		redisFree(c);
+
 	}
-	return NULL;
+	//return
+	return pSearchUser;
 }
 
 //////////////////////////////////////////////////////////////////////

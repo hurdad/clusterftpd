@@ -31,180 +31,78 @@
  */
 
 #define CFTPSERVER_CONFIG_H_PATH "CFtpServerConfig.h"
+#include <iostream>
 #include "CFtpServer/CFtpServer.h"
+#include "metaserver_main.h"
+#include "metaserver_log.hpp"
+#include "metaserver_config.hpp"
 
-void OnServerEvent(int Event) {
-	switch (Event) {
-	case CFtpServer::START_LISTENING:
-		printf("* Server is listening !\r\n");
-		break;
+using namespace meta_server;
+using namespace std;
 
-	case CFtpServer::START_ACCEPTING:
-		printf("* Server is accepting incoming connections !\r\n");
-		break;
-
-	case CFtpServer::STOP_LISTENING:
-		printf("* Server stopped listening !\r\n");
-		break;
-
-	case CFtpServer::STOP_ACCEPTING:
-		printf("* Server stopped accepting incoming connections !\r\n");
-		break;
-	case CFtpServer::MEM_ERROR:
-		printf(
-				"* Warning, the CFtpServer class could not allocate memory !\r\n");
-		break;
-	case CFtpServer::THREAD_ERROR:
-		printf(
-				"* Warning, the CFtpServer class could not create a thread !\r\n");
-		break;
-	case CFtpServer::ZLIB_VERSION_ERROR:
-		printf(
-				"* Warning, the Zlib header version differs from the Zlib library version !\r\n");
-		break;
-	case CFtpServer::ZLIB_STREAM_ERROR:
-		printf("* Warning, error during compressing/decompressing data !\r\n");
-		break;
-	}
-}
-
-void OnUserEvent(int Event, CFtpServer::CUserEntry *pUser, void *pArg) {
-	switch (Event) {
-	case CFtpServer::NEW_USER:
-		printf(
-				"* A new user has been created:\r\n"
-						"\tLogin: %s\r\n" "\tPassword: %s\r\n" "\tStart directory: %s\r\n",
-				pUser->GetLogin(), pUser->GetPassword(),
-				pUser->GetStartDirectory());
-		break;
-
-	case CFtpServer::DELETE_USER:
-		printf("* \"%s\"user is being deleted: \r\n", pUser->GetLogin());
-		break;
-	}
-}
-
-void OnClientEvent(int Event, CFtpServer::CClientEntry *pClient, void *pArg) {
-	switch (Event) {
-	case CFtpServer::NEW_CLIENT:
-		printf("* A new client has been created:\r\n"
-				"\tClient IP: [%s]\r\n\tServer IP: [%s]\r\n",
-				inet_ntoa(*pClient->GetIP()),
-				inet_ntoa(*pClient->GetServerIP()));
-		break;
-
-	case CFtpServer::DELETE_CLIENT:
-		printf("* A client is being deleted.\r\n");
-		break;
-
-	case CFtpServer::CLIENT_AUTH:
-		printf("* A client has logged-in as \"%s\".\r\n",
-				pClient->GetUser()->GetLogin());
-		break;
-
-	case CFtpServer::CLIENT_SOFTWARE:
-		printf("* A client has proceed the CLNT FTP command: %s.\r\n",
-				(char*) pArg);
-		break;
-
-	case CFtpServer::CLIENT_DISCONNECT:
-		printf("* A client has disconnected.\r\n");
-		break;
-
-	case CFtpServer::CLIENT_UPLOAD:
-		printf("* A client logged-on as \"%s\" is uploading a file: \"%s\"\r\n",
-				pClient->GetUser()->GetLogin(), (char*) pArg);
-		break;
-
-	case CFtpServer::CLIENT_DOWNLOAD:
-		printf(
-				"* A client logged-on as \"%s\" is downloading a file: \"%s\"\r\n",
-				pClient->GetUser()->GetLogin(), (char*) pArg);
-		break;
-
-	case CFtpServer::CLIENT_LIST:
-		printf(
-				"* A client logged-on as \"%s\" is listing a directory: \"%s\"\r\n",
-				pClient->GetUser()->GetLogin(), (char*) pArg);
-		break;
-
-	case CFtpServer::CLIENT_CHANGE_DIR:
-		printf(
-				"* A client logged-on as \"%s\" has changed its working directory:\r\n"
-						"\tFull path: \"%s\"\r\n\tWorking directory: \"%s\"\r\n",
-				pClient->GetUser()->GetLogin(), (char*) pArg,
-				pClient->GetWorkingDirectory());
-		break;
-
-	case CFtpServer::RECVD_CMD_LINE:
-		printf("* Received: %s (%s)>  %s\r\n",
-				pClient->GetUser() ?
-						pClient->GetUser()->GetLogin() : "(Not logged in)",
-				inet_ntoa(*pClient->GetIP()), (char*) pArg);
-		break;
-
-	case CFtpServer::SEND_REPLY:
-		printf("* Sent: %s (%s)>  %s\r\n",
-				pClient->GetUser() ?
-						pClient->GetUser()->GetLogin() : "(Not logged in)",
-				inet_ntoa(*pClient->GetIP()), (char*) pArg);
-		break;
-
-	case CFtpServer::TOO_MANY_PASS_TRIES:
-		printf("* Too many pass tries for (%s)\r\n",
-				inet_ntoa(*pClient->GetIP()));
-		break;
-	}
-}
+//config global
+metaserver_config server;
 
 int main(int argc, char * argv[]) {
 
+	if(argc != 2){
+		cout << "Usage: metaserver sample.cfg" << endl;
+		//log error
+		//Log::OnServerEvent(
+		return 1;
+	}
+
+	//init config
+	InitServerConfig();
+	LoadServerConfig(argv[1]);
+
+	//init ftp object
 	CFtpServer FtpServer;
 
-	FtpServer.SetServerCallback(OnServerEvent);
-	FtpServer.SetUserCallback(OnUserEvent);
-	FtpServer.SetClientCallback(OnClientEvent);
+	//set logging call backs
+	FtpServer.SetServerCallback(Log::OnServerEvent);
+	FtpServer.SetUserCallback(Log::OnUserEvent);
+	FtpServer.SetClientCallback(Log::OnClientEvent);
 
-	FtpServer.SetMaxPasswordTries(3);
-	FtpServer.SetNoLoginTimeout(45); // seconds
-	FtpServer.SetNoTransferTimeout(90); // seconds
-	FtpServer.SetDataPortRange(100, 900); // data TCP-Port range = [100-999]
-	FtpServer.SetCheckPassDelay(500); // milliseconds. Bruteforcing protection.
+	//configuration
+	FtpServer.SetMaxPasswordTries(server.MaxPasswordTries);
+	FtpServer.SetNoLoginTimeout(server.NoLoginTimeout); // seconds
+	FtpServer.SetNoTransferTimeout(server.NoTransferTimeout); // seconds
+	FtpServer.SetDataPortRange(server.DataPortRange.usStart, server.DataPortRange.usLen); // data TCP-Port range = [100-999]
+	FtpServer.SetCheckPassDelay(server.CheckPassDelay); // milliseconds. Bruteforcing protection.
+	FtpServer.SetTransferBufferSize(server.TransferBufferSize);
+	FtpServer.SetTransferSocketBufferSize(server.TransferSocketBufferSize);
+	FtpServer.EnableFXP(server.EnableFXP);
 
 #ifdef CFTPSERVER_ENABLE_ZLIB
 	FtpServer.EnableModeZ( true );
 #endif
 
-
 #ifdef CFTPSERVER_ENABLE_EXTRACMD // See "CFtpServer/config.h". not defined by default
-		pUser->SetExtraCommand( CFtpServer::ExtraCmd_EXEC );
-		// Security Warning ! Only here for example.
-		// the last command allow the user to call the 'system()' C function!
+	pUser->SetExtraCommand( CFtpServer::ExtraCmd_EXEC );
+	// Security Warning ! Only here for example.
+	// the last command allow the user to call the 'system()' C function!
 #endif
 
-		// If you only want to listen on the TCP Loopback interface,
-		// replace 'INNADDR_ANY' by 'inet_addr("127.0.0.1")'.
-		if (FtpServer.StartListening(INADDR_ANY, 2100)) {
+	//Start listening
+	if (FtpServer.StartListening(inet_addr(server.ListeningIP.c_str()), server.ListeningPort)) {
 
-			printf("-Server is listening ! :)\r\n");
+		if (FtpServer.StartAccepting()) {
 
-			if (FtpServer.StartAccepting()) {
+			//loop
+			for (;;)
+				sleep(1);
 
-				printf("-Server successfully started ! :)\r\n");
+		}
 
-				for (;;)
-					sleep(1);
+		//shutdown
+		FtpServer.StopListening();
 
-			} else
-				printf("-Unable to accept incoming connections.\r\n");
+	}else{
 
-			FtpServer.StopListening();
-
-		} else
-			printf("-Unable to listen.\r\n");
-
-
-	printf("-Exiting.\r\n");
+		//log failure
+	}
 
 	return 0;
 }
+

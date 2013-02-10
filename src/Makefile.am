@@ -1,4 +1,4 @@
 bin_PROGRAMS=metaserver slaveserver
 metaserver_SOURCES=metaserver_main.cpp CFtpServer/CFtpServer.cpp
-slaveserver_SOURCES=slaveserver_main.cpp CFtpServer/CFtpServer.cpp
+slaveserver_SOURCES=slaveserver_main.cpp
 

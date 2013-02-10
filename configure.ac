@@ -21,6 +21,10 @@ AC_CHECK_LIB([thrift], [main], [],[
          echo "thrift library is required for this program"
          exit -1])
 
+AC_CHECK_LIB([config++], [main], [],[
+         echo "libconfig library is required for this program"
+         exit -1])
+         
 AC_CANONICAL_SYSTEM
 AM_INIT_AUTOMAKE()
 
