@@ -27,10 +27,15 @@ struct metaserver_config {
 #endif
 	bool EnableFXP;
 
-	const char*  RedisIP;
+	std::string  RedisIP;
 	unsigned short RedisPort;
 	unsigned short RedisDB;
 	std::set<std::string> Slaves;
+
+	std::string LogDirectory;
+	bool EnableUserLogging;
+	bool EnableClientLogging;
+	bool EnableServerLogging;
 };
 
 #endif /* METASERVER_MAIN_H_ */

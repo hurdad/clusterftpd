@@ -29,6 +29,10 @@ void InitServerConfig() {
 	server.RedisDB = 1;
 	server.TransferBufferSize = 32 * 1024;
 	server.TransferSocketBufferSize = 64 * 1024;
+	server.LogDirectory = "logs";
+	server.EnableUserLogging = false;
+	server.EnableClientLogging = true;
+	server.EnableServerLogging = true;
 
 }
 
@@ -89,6 +93,12 @@ void LoadServerConfig(char * configFile) {
 		}
 		server.Slaves = slave_map;
 	}
+
+	cfg.lookupValue("LogDirectory", server.LogDirectory);
+	cfg.lookupValue("EnableUserLogging", server.EnableUserLogging);
+	cfg.lookupValue("EnableClientLogging", server.EnableClientLogging);
+	cfg.lookupValue("EnableServerLogging", server.EnableServerLogging);
+
 }
 
 }
