@@ -54,5 +54,5 @@ libtool \
 ltmain.sh \
 missing \
 ylwrap \
-if/gen-* \
-test/gen-*
+logs/*
+
