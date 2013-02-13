@@ -31,9 +31,9 @@
  */
 
 #define CFTPSERVER_CONFIG_H_PATH "CFtpServerConfig.h"
-#include <iostream>
 #include "CFtpServer/CFtpServer.h"
 #include "metaserver_main.h"
+#include "CFtpServer/CFtpServer.h"
 #include "metaserver_log.hpp"
 #include "metaserver_config.hpp"
 
@@ -46,7 +46,7 @@ metaserver_config server;
 int main(int argc, char * argv[]) {
 
 	if(argc != 2){
-		cout << "Usage: metaserver sample.cfg" << endl;
+		cout << "Usage: metaserver metaserver-sample.cfg" << endl;
 		//log error
 		//Log::OnServerEvent(
 		return 1;
@@ -73,6 +73,7 @@ int main(int argc, char * argv[]) {
 	FtpServer.SetTransferBufferSize(server.TransferBufferSize);
 	FtpServer.SetTransferSocketBufferSize(server.TransferSocketBufferSize);
 	FtpServer.EnableFXP(server.EnableFXP);
+	FtpServer.SetRedisConnectionConfig(server.RedisIP, server.RedisPort);
 
 #ifdef CFTPSERVER_ENABLE_ZLIB
 	FtpServer.EnableModeZ( true );

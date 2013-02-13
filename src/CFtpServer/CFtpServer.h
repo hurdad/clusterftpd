@@ -95,8 +95,7 @@ typedef long long __int64;
 #endif
 
 #include "hiredis/hiredis.h"
-#include "redis_util.hpp"
-#include <map>
+#include "redis_classes.hpp"
 #include "boost/lexical_cast.hpp"
 
 /**
@@ -357,6 +356,25 @@ public:
 	unsigned int GetTransferSocketBufferSize() const {
 		return uiTransferSocketBufferSize;
 	}
+
+	//Set Redis Connection Config
+	void SetRedisConnectionConfig(std::string ip, unsigned short port){
+		RedisConfig.ip = ip;
+		RedisConfig.port = port;
+	}
+
+	// Get Redis Connection IP
+	// Default = '127.0.0.1'
+	std::string GetRedisConnectionIP() const{
+		return RedisConfig.ip;
+	}
+
+	// Get Redis Connection Port
+	// Default = 6379
+	unsigned short GetRedisConnectionPort() const{
+			return RedisConfig.port;
+	}
+
 
 #ifdef CFTPSERVER_ENABLE_ZLIB
 	/**
@@ -687,6 +705,11 @@ private:
 	bool bEnableZlib;
 #endif
 	bool bEnableFXP;
+
+	struct {
+		std::string ip;
+		unsigned short int port;
+	} RedisConfig;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -807,6 +830,8 @@ private:
 	class CUserEntry *pPrevUser, *pNextUser;
 	bool bDelete;
 	bool bIsEnabled;
+	__gid_t gid;
+	__uid_t uid;
 	//CFtpServer *pFtpServer;
 	unsigned char ucPrivileges;
 	char szLogin[MaxLoginLen + 1];
@@ -895,6 +920,7 @@ public:
 	bool InitDelete();
 
 private:
+
 
 	////////////////////////////////////////
 	// SHELL
@@ -1139,6 +1165,10 @@ private:
 	bool bIsCtrlCanalOpen;
 	class CFtpServer *pFtpServer;
 
+	//Redis Connection
+	redisContext *c;
+
+
 	/**
 	 * Send a reply to the Client.
 	 *
@@ -1166,6 +1196,7 @@ private:
  * Layer of abstraction used to list file on several Operating Systems.
  */
 class CFtpServer::CEnumFileInfo {
+
 public:
 	CEnumFileInfo() {
 		memset(this, 0x0, sizeof(CEnumFileInfo));
@@ -1184,6 +1215,7 @@ public:
 #endif
 #else
 	DIR *dp;
+	VDIR *vdp;
 	struct stat st;
 	struct dirent dir_entry;
 #endif
@@ -1198,7 +1230,7 @@ public:
 #endif
 	time_t mtime; // similar to st_mtime.
 	unsigned short mode; // similar to st_mode.
+	redisContext *c;
 };
 
 #endif // #ifdef CFTPSERVER_H
-
