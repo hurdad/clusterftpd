@@ -1,4 +1,3 @@
 bin_PROGRAMS=metaserver slaveserver
-metaserver_SOURCES=metaserver_main.cpp CFtpServer/CFtpServer.cpp
-slaveserver_SOURCES=slaveserver_main.cpp ../gen-cpp/SharedService.cpp ../gen-cpp/shared_types.cpp ../gen-cpp/tutorial_types.cpp ../gen-cpp/Calculator.cpp
-
+metaserver_SOURCES=metaserver-cpp/metaserver_main.cpp CFtpServer/CFtpServer.cpp
+slaveserver_SOURCES=slaveserver-cpp/slaveserver_main.cpp gen-cpp/SlaveServices.cpp gen-cpp/slave_services_types.cpp

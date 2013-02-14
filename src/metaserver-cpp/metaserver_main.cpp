@@ -33,7 +33,6 @@
 #define CFTPSERVER_CONFIG_H_PATH "CFtpServerConfig.h"
 #include "CFtpServer/CFtpServer.h"
 #include "metaserver_main.h"
-#include "CFtpServer/CFtpServer.h"
 #include "metaserver_log.hpp"
 #include "metaserver_config.hpp"
 
