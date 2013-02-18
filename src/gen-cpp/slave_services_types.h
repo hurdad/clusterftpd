@@ -16,6 +16,105 @@
 
 namespace slave {
 
+typedef struct _Params__isset {
+  _Params__isset() : client_ip(false), client_port(false), fid(false), restart_at(false), transfer_buffer_size(false), server_ip(false), data_range_start(false), data_range_len(false) {}
+  bool client_ip;
+  bool client_port;
+  bool fid;
+  bool restart_at;
+  bool transfer_buffer_size;
+  bool server_ip;
+  bool data_range_start;
+  bool data_range_len;
+} _Params__isset;
+
+class Params {
+ public:
+
+  static const char* ascii_fingerprint; // = "6BFE6C5BD33AF95FB0364EA75DCDE186";
+  static const uint8_t binary_fingerprint[16]; // = {0x6B,0xFE,0x6C,0x5B,0xD3,0x3A,0xF9,0x5F,0xB0,0x36,0x4E,0xA7,0x5D,0xCD,0xE1,0x86};
+
+  Params() : client_ip(), client_port(0), fid(0), restart_at(0), transfer_buffer_size(0), server_ip(0), data_range_start(0), data_range_len(0) {
+  }
+
+  virtual ~Params() throw() {}
+
+  std::string client_ip;
+  int32_t client_port;
+  int64_t fid;
+  int64_t restart_at;
+  int32_t transfer_buffer_size;
+  int64_t server_ip;
+  int32_t data_range_start;
+  int32_t data_range_len;
+
+  _Params__isset __isset;
+
+  void __set_client_ip(const std::string& val) {
+    client_ip = val;
+  }
+
+  void __set_client_port(const int32_t val) {
+    client_port = val;
+  }
+
+  void __set_fid(const int64_t val) {
+    fid = val;
+  }
+
+  void __set_restart_at(const int64_t val) {
+    restart_at = val;
+  }
+
+  void __set_transfer_buffer_size(const int32_t val) {
+    transfer_buffer_size = val;
+  }
+
+  void __set_server_ip(const int64_t val) {
+    server_ip = val;
+  }
+
+  void __set_data_range_start(const int32_t val) {
+    data_range_start = val;
+  }
+
+  void __set_data_range_len(const int32_t val) {
+    data_range_len = val;
+  }
+
+  bool operator == (const Params & rhs) const
+  {
+    if (!(client_ip == rhs.client_ip))
+      return false;
+    if (!(client_port == rhs.client_port))
+      return false;
+    if (!(fid == rhs.fid))
+      return false;
+    if (!(restart_at == rhs.restart_at))
+      return false;
+    if (!(transfer_buffer_size == rhs.transfer_buffer_size))
+      return false;
+    if (!(server_ip == rhs.server_ip))
+      return false;
+    if (!(data_range_start == rhs.data_range_start))
+      return false;
+    if (!(data_range_len == rhs.data_range_len))
+      return false;
+    return true;
+  }
+  bool operator != (const Params &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const Params & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+void swap(Params &a, Params &b);
+
 } // namespace
 
 #endif

@@ -33,14 +33,12 @@
 #define CFTPSERVER_CONFIG_H_PATH "CFtpServerConfig.h"
 #include "CFtpServer/CFtpServer.h"
 #include "metaserver_main.h"
-#include "metaserver_log.hpp"
 #include "metaserver_config.hpp"
+#include "metaserver_log.hpp"
+
 
 using namespace meta_server;
 using namespace std;
-
-//config global
-metaserver_config server;
 
 int main(int argc, char * argv[]) {
 
@@ -73,6 +71,7 @@ int main(int argc, char * argv[]) {
 	FtpServer.SetTransferSocketBufferSize(server.TransferSocketBufferSize);
 	FtpServer.EnableFXP(server.EnableFXP);
 	FtpServer.SetRedisConnectionConfig(server.RedisIP, server.RedisPort);
+	FtpServer.SetSlaves(server.Slaves);
 
 #ifdef CFTPSERVER_ENABLE_ZLIB
 	FtpServer.EnableModeZ( true );

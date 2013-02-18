@@ -8,10 +8,13 @@
 #ifndef METASERVER_CONFIG_HPP_
 #define METASERVER_CONFIG_HPP_
 #include "libconfig.h++"
-#include <map>
+#include <iostream>
 
 namespace meta_server {
+
 using namespace libconfig;
+
+metaserver_config server;
 
 void InitServerConfig() {
 
@@ -87,11 +90,16 @@ void LoadServerConfig(char * configFile) {
 
 	if (cfg.exists("Slaves")) {
 		Setting& slaves = cfg.lookup("Slaves");
-		std::set<std::string> slave_map;
 		for (int i = 0; i < slaves.getLength(); i++) {
-			slave_map.insert(slaves[i]);
+
+			slave_info myinfo;
+			const char* host = slaves[i]["host"];
+			string shost(host);
+			myinfo.host = shost;
+			myinfo.port = (int)slaves[i]["port"];;
+
+			server.Slaves.push_back(myinfo);
 		}
-		server.Slaves = slave_map;
 	}
 
 	cfg.lookupValue("LogDirectory", server.LogDirectory);

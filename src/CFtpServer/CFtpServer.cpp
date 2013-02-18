@@ -1083,6 +1083,7 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 					" CLNT\r\n"
 					" MDTM\r\n"
 					" REST STREAM\r\n"
+					" PRET\r\n"
 					" SIZE\r\n"
 					"211 End");
 #endif
@@ -1103,9 +1104,9 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 				if (pClient->eDataConnection != NONE)
 					pClient->ResetDataConnection();
 
-				char szClientIP[32];
-				sprintf(szClientIP, "%u.%u.%u.%u", iIp1, iIp2, iIp3, iIp4);
-				unsigned long ulPortIp = inet_addr(szClientIP);
+				sprintf(pClient->szDataIp, "%u.%u.%u.%u", iIp1, iIp2, iIp3,
+						iIp4);
+				unsigned long ulPortIp = inet_addr(pClient->szDataIp);
 
 				if (!pFtpServer->IsFXPEnabled()
 						|| (ulPortIp == pClient->ulClientIP
@@ -1122,6 +1123,17 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 			} else
 				pClient->SendReply("501 Syntax error in arguments.");
 			continue;
+
+		} else if (nCmd == CMD_PRET) {
+
+	//		char cmd[30];
+	//		char file[30];
+	//		sscanf(pszCmdArg, "%s %s", cmd, file);
+			pClient->SendReply("200 Command OK");
+
+
+			continue;
+
 
 		} else if (nCmd == CMD_PASV) {
 
@@ -1414,8 +1426,8 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 
 				if (pszPath) {
 
-					if (!pClient->OpenDataConnection(nCmd))
-						continue;
+					//	if (!pClient->OpenDataConnection(nCmd))
+					//		continue;
 
 					pClient->eStatus = UPLOADING;
 					pClient->CurrentTransfer.pClient = pClient;
@@ -1433,17 +1445,11 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 					pFtpServer->OnClientEventCb(CLIENT_UPLOAD, pClient,
 							pszPath);
 
-#ifdef WIN32
-					pClient->CurrentTransfer.hTransferThread =
-					(HANDLE) _beginthreadex( NULL, 0, StoreThread, pClient,
-							0, &pClient->CurrentTransfer.uTransferThreadID );
-					if( pClient->CurrentTransfer.hTransferThread == 0 ) {
-#else
 					if (pthread_create(
 							&pClient->CurrentTransfer.TransferThreadID,
 							&pFtpServer->m_pattrTransfer, StoreThread, pClient)
 							!= 0) {
-#endif
+
 						pClient->ResetDataConnection();
 						pFtpServer->OnServerEventCb(THREAD_ERROR);
 					}
@@ -1920,6 +1926,10 @@ int CFtpServer::CClientEntry::ParseLine() {
 			if (!strcmp(sCmdBuffer + 2, "D"))
 				return CMD_PWD;
 			break;
+		case 'R':
+			if (!strcmp(sCmdBuffer + 2, "ET"))
+				return CMD_PRET;
+			break;
 		}
 		break;
 	case 'Q':
@@ -2240,7 +2250,7 @@ void* CFtpServer::CClientEntry::StoreThread(void *pvParam)
 	struct DataTransfer_t *pTransfer = &pClient->CurrentTransfer;
 
 	int len = 0;
-	int hFile = -1;
+	//int hFile = -1;
 
 	int iflags = O_WRONLY | O_CREAT | O_BINARY;
 	if (pClient->CurrentTransfer.RestartAt > 0) {
@@ -2248,111 +2258,49 @@ void* CFtpServer::CClientEntry::StoreThread(void *pvParam)
 	} else
 		iflags |= O_TRUNC; //w|b
 
-	unsigned int uiBufferSize = pFtpServer->GetTransferBufferSize();
-	char *pBuffer = new char[uiBufferSize];
+	//get fid
+	long long fid = redis_file::get_new_fid(pClient->c);
 
-#ifdef CFTPSERVER_ENABLE_ZLIB
-	int nFlush, nRet;
-	char *pOutBuffer = NULL;
-	if( pTransfer->eDataMode == ZLIB ) {
-		pOutBuffer = new char[ uiBufferSize ];
-		if( !pOutBuffer || !pBuffer ) {
-			pFtpServer->OnServerEventCb( MEM_ERROR );
-			goto endofstore;
+	bool retval = false;
+	if (pFtpServer->Slaves.size() > 0) {
+		//get slave for file
+		unsigned short index = (unsigned short) (0
+				+ (rand() % pFtpServer->Slaves.size()));
+
+		slave_info slave = pFtpServer->Slaves[index];
+
+		//send rpc
+		boost::shared_ptr<TTransport> socket(
+				new TSocket(slave.host, slave.port));
+		boost::shared_ptr<TTransport> transport(new TBufferedTransport(socket));
+		boost::shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
+		slave::slave_servicesClient client(protocol);
+		slave::Params p;
+
+		p.client_ip = pClient->szDataIp;
+		p.client_port = pClient->usDataPort;
+		p.fid = fid;
+		p.restart_at = pClient->CurrentTransfer.RestartAt;
+		p.transfer_buffer_size = pFtpServer->GetTransferBufferSize();
+
+		pClient->SendReply("150 Opening data channel.");
+
+		bool retval;
+		try {
+			transport->open();
+			retval = client.ActiveStoreTransfer(p, iflags);
+			transport->close();
+		} catch (TException &tx) {
+			printf("ERROR: %s\n", tx.what());
+			retval = false;
 		}
-		if( !pClient->InitZlib( pTransfer ) )
-		goto endofstore;
-		pTransfer->zStream.next_out = (Bytef*) pOutBuffer;
-		pTransfer->zStream.avail_out = uiBufferSize;
-	}
-#else
-	if (!pBuffer) {
-		pFtpServer->OnServerEventCb(MEM_ERROR);
-		goto endofstore;
-	}
-#endif
 
-	hFile = open(pTransfer->szPath, iflags, (int) 0777);
+		//update redis
+		//redis_file::save_new_file(pClient->c, path, mode, len , pClient->uid , pClient->gid, fid, slave);
 
-	if (hFile >= 0) {
-		if ((pTransfer->RestartAt > 0
-				&& lseek(hFile, pTransfer->RestartAt, SEEK_SET) != -1)
-				|| pTransfer->RestartAt == 0) {
-			fd_set fdRead;
-			char *ps = pBuffer;
-			char *pe = pBuffer + uiBufferSize;
-
-			while (pClient->DataSock != INVALID_SOCKET) {
-
-				FD_ZERO( &fdRead);
-				FD_SET( pClient->DataSock, &fdRead);
-
-				if (select(pClient->DataSock + 1, &fdRead, NULL, NULL, NULL)
-						> 0&& FD_ISSET( pClient->DataSock, &fdRead )) {
-					len = recv(pClient->DataSock, ps, (pe - ps), 0);
-					if (len >= 0) {
-
-#ifdef CFTPSERVER_ENABLE_ZLIB
-						if( pTransfer->eDataMode == ZLIB ) {
-							pTransfer->zStream.avail_in = len;
-							pTransfer->zStream.next_in = (Bytef*) pBuffer;
-							nFlush = !len ? Z_NO_FLUSH : Z_FINISH;
-							do
-							{
-								nRet = inflate( &pTransfer->zStream, nFlush );
-								if( nRet != Z_OK && nRet != Z_STREAM_END && nRet != Z_BUF_ERROR )
-								break; // Zlib error
-								if( len == 0 && nRet == Z_BUF_ERROR )
-								break;// transfer has been interrupt by the client.
-								if( pTransfer->zStream.avail_out == 0 || nRet == Z_STREAM_END ) {
-									if( !pClient->SafeWrite( hFile, pOutBuffer, uiBufferSize - pTransfer->zStream.avail_out) ) {
-										len = -1;
-										break; // write error
-									}
-									pTransfer->zStream.next_out = (Bytef*) pOutBuffer;
-									pTransfer->zStream.avail_out = uiBufferSize;
-								}
-							}while( pTransfer->zStream.avail_in != 0 );
-							if( nRet == Z_STREAM_END )
-							break;
-						} else
-#endif
-						if (len > 0) {
-							ps += len;
-							if (ps == pe) {
-								if (!pClient->SafeWrite(hFile, pBuffer,
-										ps - pBuffer)) {
-									len = -1;
-									break;
-								}
-								ps = pBuffer;
-							}
-						} else {
-							pClient->SafeWrite(hFile, pBuffer, ps - pBuffer);
-							break;
-						}
-					} else
-						break; // Socket Error
-
-				} else {
-					len = -1;
-					break;
-				}
-			}
-		}
-		close(hFile);
 	}
 
-	endofstore: if (pBuffer)
-		delete[] pBuffer;
-#ifdef CFTPSERVER_ENABLE_ZLIB
-	if( pTransfer->eDataMode == ZLIB ) {
-		deflateEnd( &pTransfer->zStream );
-		if( pOutBuffer ) delete [] pOutBuffer;
-	}
-#endif
-
-	if (len < 0 || hFile == -1) {
+	if (retval) {
 		pClient->SendReply("550 Can't store file.");
 	} else
 		pClient->SendReply("226 Transfer complete.");

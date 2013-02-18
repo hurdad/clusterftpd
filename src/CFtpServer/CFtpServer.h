@@ -97,6 +97,14 @@ typedef long long __int64;
 #include "hiredis/hiredis.h"
 #include "redis_classes.hpp"
 #include "boost/lexical_cast.hpp"
+#include "../gen-cpp/slave_services.h"
+#include "../gen-cpp/slave_services_types.h"
+#include <thrift/protocol/TBinaryProtocol.h>
+#include <thrift/transport/TSocket.h>
+#include <thrift/transport/TTransportUtils.h>
+using namespace apache::thrift;
+using namespace apache::thrift::protocol;
+using namespace apache::thrift::transport;
 
 /**
  * @brief CFtpServer class
@@ -373,6 +381,18 @@ public:
 	// Default = 6379
 	unsigned short GetRedisConnectionPort() const{
 			return RedisConfig.port;
+	}
+
+	// Set Slaves set
+	void SetSlaves(vector<slave_info> slaves) {
+		Slaves.clear();
+		for (vector<slave_info>::iterator it=slaves.begin(); it!=slaves.end(); ++it)
+			Slaves.push_back(*it);
+	}
+
+	// Get Slaves set
+	vector<slave_info> GetSlaves(){
+		return Slaves;
 	}
 
 
@@ -710,6 +730,8 @@ private:
 		std::string ip;
 		unsigned short int port;
 	} RedisConfig;
+
+	vector<slave_info> Slaves;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -943,6 +965,7 @@ private:
 	}volatile eStatus;
 
 	unsigned long ulDataIp;
+	char szDataIp[32];
 	unsigned short usDataPort;
 
 	char szWorkingDir[MAX_PATH + 3 + 1];
@@ -1017,7 +1040,8 @@ private:
 		CMD_XMKD,
 		CMD_RMD,
 		CMD_XRMD,
-		CMD_OPTS
+		CMD_OPTS,
+		CMD_PRET
 	};
 
 	////////////////////////////////////////

@@ -48,6 +48,62 @@ public:
 	}
 };
 
+struct slave_info{
+	string host;
+	unsigned short port;
+};
+
+class redis_file {
+public:
+	static long long get_new_fid(redisContext *c) {
+
+		redisReply* reply = (redisReply*) redisCommand(c, "INCR fid_counter");
+		return reply->integer;
+	}
+
+	static void save_new_file(redisContext *c, const char *path, mode_t mode,
+			long long size, __uid_t uid, __gid_t gid, long long fid,
+			slave_info slave_ip_port) {
+
+		redisCommand(c, "MULTI");
+
+		//stat entry
+		redisCommand(c, "HSET stat:%s fid %s", path, fid);
+		redisCommand(c, "HSET stat:%s st_mode %s", path, mode);
+		redisCommand(c, "HSET stat:%s st_size %s", path, size);
+		redisCommand(c, "HSET stat:%s st_uid %s", path, uid);
+		redisCommand(c, "HSET stat:%s st_gid %s", path, gid);
+		redisCommand(c, "HSET stat:%s st_mtime %s", path, time(NULL));
+		redisCommand(c, "HSET stat:%s slave_host %s", path, slave_ip_port.host.c_str());
+		redisCommand(c, "HSET stat:%s slave_port %s", path, slave_ip_port.port);
+
+		//diren entry
+		string parentpath, entry;
+		redisCommand(c, "SADD dirent:%s %s", parentpath.c_str(), entry.c_str());
+
+		redisReply* reply = (redisReply*) redisCommand(c, "EXEC");
+
+	}
+
+	static slave_info lookup_slave_info(redisContext *c, const char *path) {
+
+		redisReply* reply = (redisReply*) redisCommand(c, "HGETALL stat:%s",
+				path);
+
+		slave_info info;
+
+		if (reply->elements > 0) {
+			map<string, string> stat = redis_util::to_map<string>(reply);
+
+			slave_info info;
+			info.host =  stat["slave_host"];
+			info.port =  atoi(stat["slave_port"].c_str());
+		}
+		return info;
+	}
+
+};
+
 class redis_vfs {
 public:
 
@@ -60,7 +116,7 @@ public:
 		//check if user exist
 		if (reply->elements > 0) {
 			//	set<string> redis_vfs::to_set<string>(reply);
-			return new set<string>(redis_util::to_set < string > (reply));
+			return new set<string>(redis_util::to_set<string>(reply));
 		}
 
 		return NULL;
@@ -92,7 +148,7 @@ public:
 				path);
 
 		if (reply->elements > 0) {
-			map<string, string> stat = redis_util::to_map < string > (reply);
+			map<string, string> stat = redis_util::to_map<string>(reply);
 
 			buf->st_mode = atoi(stat["st_mode"].c_str());
 			buf->st_size = atoi(stat["st_size"].c_str());
@@ -105,7 +161,8 @@ public:
 		return -1;
 	}
 
-	int static mkdir(redisContext *c, const char *path, mode_t mode, __uid_t uid, __gid_t gid) {
+	int static mkdir(redisContext *c, const char *path, mode_t mode,
+			__uid_t uid, __gid_t gid) {
 
 		//Add IS_DIR to mode
 
@@ -159,7 +216,7 @@ public:
 
 		//get oldpath
 		if (reply->elements > 0) {
-			map<string, string> stat = redis_util::to_map < string > (reply);
+			map<string, string> stat = redis_util::to_map<string>(reply);
 
 			//set newpath
 			redisCommand(c, "MULTI");

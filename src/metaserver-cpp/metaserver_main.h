@@ -7,8 +7,7 @@
 
 #ifndef METASERVER_MAIN_H_
 #define METASERVER_MAIN_H_
-#include <set>
-extern struct metaserver_config server;
+
 struct metaserver_config {
 
 	std::string ListeningIP;
@@ -30,7 +29,7 @@ struct metaserver_config {
 	std::string  RedisIP;
 	unsigned short RedisPort;
 	unsigned short RedisDB;
-	std::set<std::string> Slaves;
+	std::vector<slave_info> Slaves;
 
 	std::string LogDirectory;
 	bool EnableUserLogging;

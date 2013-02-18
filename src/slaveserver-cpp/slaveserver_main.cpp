@@ -15,7 +15,7 @@
 #include "slaveserver_main.h"
 #include "slaveserver_log.hpp"
 #include "slaveserver_config.hpp"
-#include "SlaveServicesHandler.hpp"
+#include "slave_servicesHandler.hpp"
 
 using namespace std;
 using namespace apache::thrift;
@@ -40,8 +40,8 @@ int main(int argc, char * argv[]) {
 	slave_server::LoadServerConfig(argv[1]);
 
 	shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
-	shared_ptr<SlaveServicesHandler> handler(new SlaveServicesHandler());
-	shared_ptr<TProcessor> processor(new SlaveServicesProcessor(handler));
+	shared_ptr<slave_servicesHandler> handler(new slave_servicesHandler());
+	shared_ptr<TProcessor> processor(new slave_servicesProcessor(handler));
 	shared_ptr<TServerTransport> serverTransport(
 			new TServerSocket(slave_server::server.ThriftPort));
 	shared_ptr<TTransportFactory> transportFactory(
