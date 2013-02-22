@@ -22,22 +22,22 @@ class slave_servicesHandler : virtual public slave_servicesIf {
     // Your initialization goes here
   }
 
-  bool ActiveStoreTransfer(const Params& p, const int32_t iflags) {
+  void ActiveStoreTransfer(StorRetVal& _return, const ActiveParams& p, const int32_t iflags) {
     // Your implementation goes here
     printf("ActiveStoreTransfer\n");
   }
 
-  bool PasvStoreTransfer(const Params& p, const int32_t iflags) {
+  void PasvStoreTransfer(StorRetVal& _return, const PasvParams& p, const int32_t iflags) {
     // Your implementation goes here
     printf("PasvStoreTransfer\n");
   }
 
-  bool ActiveRetrieveTransfer(const Params& p) {
+  void ActiveRetrieveTransfer(std::string& _return, const ActiveParams& p) {
     // Your implementation goes here
     printf("ActiveRetrieveTransfer\n");
   }
 
-  bool PasvRetrieveTransfer(const Params& p) {
+  void PasvRetrieveTransfer(std::string& _return, const PasvParams& p) {
     // Your implementation goes here
     printf("PasvRetrieveTransfer\n");
   }

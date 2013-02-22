@@ -31,27 +31,53 @@
  */
 
 #define CFTPSERVER_CONFIG_H_PATH "CFtpServerConfig.h"
+#include <boost/program_options.hpp>
 #include "CFtpServer/CFtpServer.h"
 #include "metaserver_main.h"
 #include "metaserver_config.hpp"
 #include "metaserver_log.hpp"
 
-
 using namespace meta_server;
 using namespace std;
+using namespace boost::program_options;
 
 int main(int argc, char * argv[]) {
 
-	if(argc != 2){
-		cout << "Usage: metaserver metaserver-sample.cfg" << endl;
-		//log error
-		//Log::OnServerEvent(
-		return 1;
+	string config;
+
+	options_description desc("Options");
+	desc.add_options()("help", "Options related to the program.")("config,c",
+			value<string>(&config)->default_value("metaserver-sample.cfg"),
+			"Configuration File")("daemon,d", "Daemon Mode")("init,i",
+			"Initialization Mode ");
+
+	variables_map vm;
+	try {
+		store(parse_command_line(argc, argv, desc), vm);
+		notify(vm);
+	} catch (exception &e) {
+		cout << e.what() << endl;
+		return EXIT_FAILURE;
+	}
+
+	//print help
+	if (vm.count("help")) {
+		cout << desc << endl;
+		return EXIT_SUCCESS;
 	}
 
 	//init config
 	InitServerConfig();
-	LoadServerConfig(argv[1]);
+	LoadServerConfig(config.c_str());
+
+	//Modes
+	if (vm.count("init")) {
+		InitRedis();
+	}
+
+	if (!vm.count("daemon")) {
+		return EXIT_SUCCESS;
+	}
 
 	//init ftp object
 	CFtpServer FtpServer;
@@ -65,12 +91,13 @@ int main(int argc, char * argv[]) {
 	FtpServer.SetMaxPasswordTries(server.MaxPasswordTries);
 	FtpServer.SetNoLoginTimeout(server.NoLoginTimeout); // seconds
 	FtpServer.SetNoTransferTimeout(server.NoTransferTimeout); // seconds
-	FtpServer.SetDataPortRange(server.DataPortRange.usStart, server.DataPortRange.usLen); // data TCP-Port range = [100-999]
+	FtpServer.SetDataPortRange(server.DataPortRange.usStart,
+			server.DataPortRange.usLen); // data TCP-Port range = [100-999]
 	FtpServer.SetCheckPassDelay(server.CheckPassDelay); // milliseconds. Bruteforcing protection.
 	FtpServer.SetTransferBufferSize(server.TransferBufferSize);
 	FtpServer.SetTransferSocketBufferSize(server.TransferSocketBufferSize);
 	FtpServer.EnableFXP(server.EnableFXP);
-	FtpServer.SetRedisConnectionConfig(server.RedisIP, server.RedisPort);
+	FtpServer.SetRedisConnectionConfig(server.RedisIP, server.RedisPort, server.RedisDB);
 	FtpServer.SetSlaves(server.Slaves);
 
 #ifdef CFTPSERVER_ENABLE_ZLIB
@@ -84,7 +111,8 @@ int main(int argc, char * argv[]) {
 #endif
 
 	//Start listening
-	if (FtpServer.StartListening(inet_addr(server.ListeningIP.c_str()), server.ListeningPort)) {
+	if (FtpServer.StartListening(inet_addr(server.ListeningIP.c_str()),
+			server.ListeningPort)) {
 
 		if (FtpServer.StartAccepting()) {
 
@@ -97,9 +125,8 @@ int main(int argc, char * argv[]) {
 		//shutdown
 		FtpServer.StopListening();
 
-	}else{
-
-		//log failure
+	} else {
+		Log::OnServerEvent(CFtpServer::ERROR_LISTENING);
 	}
 
 	return 0;

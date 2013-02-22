@@ -15,10 +15,10 @@ namespace slave {
 class slave_servicesIf {
  public:
   virtual ~slave_servicesIf() {}
-  virtual bool ActiveStoreTransfer(const Params& p, const int32_t iflags) = 0;
-  virtual bool PasvStoreTransfer(const Params& p, const int32_t iflags) = 0;
-  virtual bool ActiveRetrieveTransfer(const Params& p) = 0;
-  virtual bool PasvRetrieveTransfer(const Params& p) = 0;
+  virtual void ActiveStoreTransfer(StorRetVal& _return, const ActiveParams& p, const int32_t iflags) = 0;
+  virtual void PasvStoreTransfer(StorRetVal& _return, const PasvParams& p, const int32_t iflags) = 0;
+  virtual void ActiveRetrieveTransfer(std::string& _return, const ActiveParams& p) = 0;
+  virtual void PasvRetrieveTransfer(std::string& _return, const PasvParams& p) = 0;
 };
 
 class slave_servicesIfFactory {
@@ -48,21 +48,17 @@ class slave_servicesIfSingletonFactory : virtual public slave_servicesIfFactory 
 class slave_servicesNull : virtual public slave_servicesIf {
  public:
   virtual ~slave_servicesNull() {}
-  bool ActiveStoreTransfer(const Params& /* p */, const int32_t /* iflags */) {
-    bool _return = false;
-    return _return;
+  void ActiveStoreTransfer(StorRetVal& /* _return */, const ActiveParams& /* p */, const int32_t /* iflags */) {
+    return;
   }
-  bool PasvStoreTransfer(const Params& /* p */, const int32_t /* iflags */) {
-    bool _return = false;
-    return _return;
+  void PasvStoreTransfer(StorRetVal& /* _return */, const PasvParams& /* p */, const int32_t /* iflags */) {
+    return;
   }
-  bool ActiveRetrieveTransfer(const Params& /* p */) {
-    bool _return = false;
-    return _return;
+  void ActiveRetrieveTransfer(std::string& /* _return */, const ActiveParams& /* p */) {
+    return;
   }
-  bool PasvRetrieveTransfer(const Params& /* p */) {
-    bool _return = false;
-    return _return;
+  void PasvRetrieveTransfer(std::string& /* _return */, const PasvParams& /* p */) {
+    return;
   }
 };
 
@@ -80,12 +76,12 @@ class slave_services_ActiveStoreTransfer_args {
 
   virtual ~slave_services_ActiveStoreTransfer_args() throw() {}
 
-  Params p;
+  ActiveParams p;
   int32_t iflags;
 
   _slave_services_ActiveStoreTransfer_args__isset __isset;
 
-  void __set_p(const Params& val) {
+  void __set_p(const ActiveParams& val) {
     p = val;
   }
 
@@ -119,7 +115,7 @@ class slave_services_ActiveStoreTransfer_pargs {
 
   virtual ~slave_services_ActiveStoreTransfer_pargs() throw() {}
 
-  const Params* p;
+  const ActiveParams* p;
   const int32_t* iflags;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
@@ -134,16 +130,16 @@ typedef struct _slave_services_ActiveStoreTransfer_result__isset {
 class slave_services_ActiveStoreTransfer_result {
  public:
 
-  slave_services_ActiveStoreTransfer_result() : success(0) {
+  slave_services_ActiveStoreTransfer_result() {
   }
 
   virtual ~slave_services_ActiveStoreTransfer_result() throw() {}
 
-  bool success;
+  StorRetVal success;
 
   _slave_services_ActiveStoreTransfer_result__isset __isset;
 
-  void __set_success(const bool val) {
+  void __set_success(const StorRetVal& val) {
     success = val;
   }
 
@@ -175,7 +171,7 @@ class slave_services_ActiveStoreTransfer_presult {
 
   virtual ~slave_services_ActiveStoreTransfer_presult() throw() {}
 
-  bool* success;
+  StorRetVal* success;
 
   _slave_services_ActiveStoreTransfer_presult__isset __isset;
 
@@ -197,12 +193,12 @@ class slave_services_PasvStoreTransfer_args {
 
   virtual ~slave_services_PasvStoreTransfer_args() throw() {}
 
-  Params p;
+  PasvParams p;
   int32_t iflags;
 
   _slave_services_PasvStoreTransfer_args__isset __isset;
 
-  void __set_p(const Params& val) {
+  void __set_p(const PasvParams& val) {
     p = val;
   }
 
@@ -236,7 +232,7 @@ class slave_services_PasvStoreTransfer_pargs {
 
   virtual ~slave_services_PasvStoreTransfer_pargs() throw() {}
 
-  const Params* p;
+  const PasvParams* p;
   const int32_t* iflags;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
@@ -251,16 +247,16 @@ typedef struct _slave_services_PasvStoreTransfer_result__isset {
 class slave_services_PasvStoreTransfer_result {
  public:
 
-  slave_services_PasvStoreTransfer_result() : success(0) {
+  slave_services_PasvStoreTransfer_result() {
   }
 
   virtual ~slave_services_PasvStoreTransfer_result() throw() {}
 
-  bool success;
+  StorRetVal success;
 
   _slave_services_PasvStoreTransfer_result__isset __isset;
 
-  void __set_success(const bool val) {
+  void __set_success(const StorRetVal& val) {
     success = val;
   }
 
@@ -292,7 +288,7 @@ class slave_services_PasvStoreTransfer_presult {
 
   virtual ~slave_services_PasvStoreTransfer_presult() throw() {}
 
-  bool* success;
+  StorRetVal* success;
 
   _slave_services_PasvStoreTransfer_presult__isset __isset;
 
@@ -313,11 +309,11 @@ class slave_services_ActiveRetrieveTransfer_args {
 
   virtual ~slave_services_ActiveRetrieveTransfer_args() throw() {}
 
-  Params p;
+  ActiveParams p;
 
   _slave_services_ActiveRetrieveTransfer_args__isset __isset;
 
-  void __set_p(const Params& val) {
+  void __set_p(const ActiveParams& val) {
     p = val;
   }
 
@@ -345,7 +341,7 @@ class slave_services_ActiveRetrieveTransfer_pargs {
 
   virtual ~slave_services_ActiveRetrieveTransfer_pargs() throw() {}
 
-  const Params* p;
+  const ActiveParams* p;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -359,16 +355,16 @@ typedef struct _slave_services_ActiveRetrieveTransfer_result__isset {
 class slave_services_ActiveRetrieveTransfer_result {
  public:
 
-  slave_services_ActiveRetrieveTransfer_result() : success(0) {
+  slave_services_ActiveRetrieveTransfer_result() : success() {
   }
 
   virtual ~slave_services_ActiveRetrieveTransfer_result() throw() {}
 
-  bool success;
+  std::string success;
 
   _slave_services_ActiveRetrieveTransfer_result__isset __isset;
 
-  void __set_success(const bool val) {
+  void __set_success(const std::string& val) {
     success = val;
   }
 
@@ -400,7 +396,7 @@ class slave_services_ActiveRetrieveTransfer_presult {
 
   virtual ~slave_services_ActiveRetrieveTransfer_presult() throw() {}
 
-  bool* success;
+  std::string* success;
 
   _slave_services_ActiveRetrieveTransfer_presult__isset __isset;
 
@@ -421,11 +417,11 @@ class slave_services_PasvRetrieveTransfer_args {
 
   virtual ~slave_services_PasvRetrieveTransfer_args() throw() {}
 
-  Params p;
+  PasvParams p;
 
   _slave_services_PasvRetrieveTransfer_args__isset __isset;
 
-  void __set_p(const Params& val) {
+  void __set_p(const PasvParams& val) {
     p = val;
   }
 
@@ -453,7 +449,7 @@ class slave_services_PasvRetrieveTransfer_pargs {
 
   virtual ~slave_services_PasvRetrieveTransfer_pargs() throw() {}
 
-  const Params* p;
+  const PasvParams* p;
 
   uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
 
@@ -467,16 +463,16 @@ typedef struct _slave_services_PasvRetrieveTransfer_result__isset {
 class slave_services_PasvRetrieveTransfer_result {
  public:
 
-  slave_services_PasvRetrieveTransfer_result() : success(0) {
+  slave_services_PasvRetrieveTransfer_result() : success() {
   }
 
   virtual ~slave_services_PasvRetrieveTransfer_result() throw() {}
 
-  bool success;
+  std::string success;
 
   _slave_services_PasvRetrieveTransfer_result__isset __isset;
 
-  void __set_success(const bool val) {
+  void __set_success(const std::string& val) {
     success = val;
   }
 
@@ -508,7 +504,7 @@ class slave_services_PasvRetrieveTransfer_presult {
 
   virtual ~slave_services_PasvRetrieveTransfer_presult() throw() {}
 
-  bool* success;
+  std::string* success;
 
   _slave_services_PasvRetrieveTransfer_presult__isset __isset;
 
@@ -536,18 +532,18 @@ class slave_servicesClient : virtual public slave_servicesIf {
   boost::shared_ptr< ::apache::thrift::protocol::TProtocol> getOutputProtocol() {
     return poprot_;
   }
-  bool ActiveStoreTransfer(const Params& p, const int32_t iflags);
-  void send_ActiveStoreTransfer(const Params& p, const int32_t iflags);
-  bool recv_ActiveStoreTransfer();
-  bool PasvStoreTransfer(const Params& p, const int32_t iflags);
-  void send_PasvStoreTransfer(const Params& p, const int32_t iflags);
-  bool recv_PasvStoreTransfer();
-  bool ActiveRetrieveTransfer(const Params& p);
-  void send_ActiveRetrieveTransfer(const Params& p);
-  bool recv_ActiveRetrieveTransfer();
-  bool PasvRetrieveTransfer(const Params& p);
-  void send_PasvRetrieveTransfer(const Params& p);
-  bool recv_PasvRetrieveTransfer();
+  void ActiveStoreTransfer(StorRetVal& _return, const ActiveParams& p, const int32_t iflags);
+  void send_ActiveStoreTransfer(const ActiveParams& p, const int32_t iflags);
+  void recv_ActiveStoreTransfer(StorRetVal& _return);
+  void PasvStoreTransfer(StorRetVal& _return, const PasvParams& p, const int32_t iflags);
+  void send_PasvStoreTransfer(const PasvParams& p, const int32_t iflags);
+  void recv_PasvStoreTransfer(StorRetVal& _return);
+  void ActiveRetrieveTransfer(std::string& _return, const ActiveParams& p);
+  void send_ActiveRetrieveTransfer(const ActiveParams& p);
+  void recv_ActiveRetrieveTransfer(std::string& _return);
+  void PasvRetrieveTransfer(std::string& _return, const PasvParams& p);
+  void send_PasvRetrieveTransfer(const PasvParams& p);
+  void recv_PasvRetrieveTransfer(std::string& _return);
  protected:
   boost::shared_ptr< ::apache::thrift::protocol::TProtocol> piprot_;
   boost::shared_ptr< ::apache::thrift::protocol::TProtocol> poprot_;
@@ -602,40 +598,44 @@ class slave_servicesMultiface : virtual public slave_servicesIf {
     ifaces_.push_back(iface);
   }
  public:
-  bool ActiveStoreTransfer(const Params& p, const int32_t iflags) {
+  void ActiveStoreTransfer(StorRetVal& _return, const ActiveParams& p, const int32_t iflags) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->ActiveStoreTransfer(p, iflags);
+      ifaces_[i]->ActiveStoreTransfer(_return, p, iflags);
     }
-    return ifaces_[i]->ActiveStoreTransfer(p, iflags);
+    ifaces_[i]->ActiveStoreTransfer(_return, p, iflags);
+    return;
   }
 
-  bool PasvStoreTransfer(const Params& p, const int32_t iflags) {
+  void PasvStoreTransfer(StorRetVal& _return, const PasvParams& p, const int32_t iflags) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->PasvStoreTransfer(p, iflags);
+      ifaces_[i]->PasvStoreTransfer(_return, p, iflags);
     }
-    return ifaces_[i]->PasvStoreTransfer(p, iflags);
+    ifaces_[i]->PasvStoreTransfer(_return, p, iflags);
+    return;
   }
 
-  bool ActiveRetrieveTransfer(const Params& p) {
+  void ActiveRetrieveTransfer(std::string& _return, const ActiveParams& p) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->ActiveRetrieveTransfer(p);
+      ifaces_[i]->ActiveRetrieveTransfer(_return, p);
     }
-    return ifaces_[i]->ActiveRetrieveTransfer(p);
+    ifaces_[i]->ActiveRetrieveTransfer(_return, p);
+    return;
   }
 
-  bool PasvRetrieveTransfer(const Params& p) {
+  void PasvRetrieveTransfer(std::string& _return, const PasvParams& p) {
     size_t sz = ifaces_.size();
     size_t i = 0;
     for (; i < (sz - 1); ++i) {
-      ifaces_[i]->PasvRetrieveTransfer(p);
+      ifaces_[i]->PasvRetrieveTransfer(_return, p);
     }
-    return ifaces_[i]->PasvRetrieveTransfer(p);
+    ifaces_[i]->PasvRetrieveTransfer(_return, p);
+    return;
   }
 
 };

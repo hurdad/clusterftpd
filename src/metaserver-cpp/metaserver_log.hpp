@@ -20,7 +20,7 @@ public:
 	void static OnServerEvent(int Event) {
 
 		//check config
-		if(!server.EnableServerLogging)
+		if (!server.EnableServerLogging)
 			return;
 
 		// Current date/time based on current system
@@ -38,7 +38,7 @@ public:
 		ofstream log(log_file.c_str(), ios::app);
 
 		// Check for log
-		if(!log.is_open()){
+		if (!log.is_open()) {
 			log.close();
 			return;
 		}
@@ -81,6 +81,11 @@ public:
 					<< " - Warning, error during compressing/decompressing data !\r\n";
 
 			break;
+		case CFtpServer::THRIFT_ERROR:
+				log << ts
+						<< " - Warning, error thrift server exception !\r\n";
+
+				break;
 		}
 
 		log.close();
@@ -90,7 +95,7 @@ public:
 			void *pArg) {
 
 		//check config
-		if(!server.EnableServerLogging)
+		if (!server.EnableServerLogging)
 			return;
 
 		// Current date/time based on current system
@@ -108,7 +113,7 @@ public:
 		ofstream log(log_file.c_str(), ios::app);
 
 		// Check for log
-		if(!log.is_open()){
+		if (!log.is_open()) {
 			log.close();
 			return;
 		}
@@ -135,7 +140,7 @@ public:
 			void *pArg) {
 
 		//check config
-		if(!server.EnableClientLogging)
+		if (!server.EnableClientLogging)
 			return;
 
 		//init
@@ -156,7 +161,7 @@ public:
 		ofstream log(log_file.c_str(), ios::app);
 
 		// Check for log
-		if(!log.is_open()){
+		if (!log.is_open()) {
 			log.close();
 			return;
 		}

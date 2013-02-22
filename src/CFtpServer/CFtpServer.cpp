@@ -627,8 +627,13 @@ CFtpServer::CClientEntry *CFtpServer::AddClient(SOCKET Sock,
 			pClient->c = redisConnect(GetRedisConnectionIP().c_str(),
 					GetRedisConnectionPort());
 			if (pClient->c != NULL && pClient->c->err) {
-				//TODO convert to OnServerEvent
-				printf("Redis Error: %s\n", pClient->c->errstr);
+				OnServerEventCb(REDIS_CONNECT_ERROR);
+				return NULL;
+			}
+			redisReply* reply = (redisReply*) redisCommand(pClient->c,
+					"SELECT %u", GetRedisConnectionDB());
+			if (reply != NULL && pClient->c->err) {
+				OnServerEventCb(REDIS_CONNECT_ERROR);
 				return NULL;
 			}
 
@@ -701,17 +706,22 @@ CFtpServer::CUserEntry *CFtpServer::SearchUserFromLogin(const char *pszLogin) {
 	if (pszLogin) {
 
 		//connect to redis
-
 		redisContext *c = redisConnect(GetRedisConnectionIP().c_str(),
 				GetRedisConnectionPort());
 		if (c != NULL && c->err) {
-			//TODO convert to OnServerEvent
-			printf("Redis Error: %s\n", c->errstr);
+			OnServerEventCb(REDIS_CONNECT_ERROR);
 			return NULL;
 		}
+		redisReply* reply = (redisReply*) redisCommand(c, "SELECT %u",
+				GetRedisConnectionDB());
+		if (reply != NULL && c->err) {
+			OnServerEventCb(REDIS_CONNECT_ERROR);
+			return NULL;
+		}
+		freeReplyObject(reply);
 
 		//query user
-		redisReply* reply = (redisReply*) redisCommand(c, "HGETALL username:%s",
+		reply = (redisReply*) redisCommand(c, "HGETALL username:%s",
 				pszLogin);
 
 		//check if user exist
@@ -1104,9 +1114,9 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 				if (pClient->eDataConnection != NONE)
 					pClient->ResetDataConnection();
 
-				sprintf(pClient->szDataIp, "%u.%u.%u.%u", iIp1, iIp2, iIp3,
-						iIp4);
-				unsigned long ulPortIp = inet_addr(pClient->szDataIp);
+				char szClientIP[32];
+				sprintf(szClientIP, "%u.%u.%u.%u", iIp1, iIp2, iIp3, iIp4);
+				unsigned long ulPortIp = inet_addr(szClientIP);
 
 				if (!pFtpServer->IsFXPEnabled()
 						|| (ulPortIp == pClient->ulClientIP
@@ -1126,14 +1136,12 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 
 		} else if (nCmd == CMD_PRET) {
 
-	//		char cmd[30];
-	//		char file[30];
-	//		sscanf(pszCmdArg, "%s %s", cmd, file);
+			//		char cmd[30];
+			//		char file[30];
+			//		sscanf(pszCmdArg, "%s %s", cmd, file);
 			pClient->SendReply("200 Command OK");
 
-
 			continue;
-
 
 		} else if (nCmd == CMD_PASV) {
 
@@ -1370,8 +1378,8 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 						&& redis_vfs::stat(pClient->c, pszPath, &st)
 								== 0&& S_ISREG( st.st_mode )) {
 
-					if (pClient->OpenDataConnection(nCmd) == false)
-						continue;
+				//	if (pClient->OpenDataConnection(nCmd) == false)
+				//		continue;
 
 					pClient->eStatus = DOWNLOADING;
 					pClient->CurrentTransfer.pClient = pClient;
@@ -2249,9 +2257,6 @@ void* CFtpServer::CClientEntry::StoreThread(void *pvParam)
 	CFtpServer *pFtpServer = pClient->pFtpServer;
 	struct DataTransfer_t *pTransfer = &pClient->CurrentTransfer;
 
-	int len = 0;
-	//int hFile = -1;
-
 	int iflags = O_WRONLY | O_CREAT | O_BINARY;
 	if (pClient->CurrentTransfer.RestartAt > 0) {
 		iflags |= O_APPEND; //a|b
@@ -2259,9 +2264,8 @@ void* CFtpServer::CClientEntry::StoreThread(void *pvParam)
 		iflags |= O_TRUNC; //w|b
 
 	//get fid
-	long long fid = redis_file::get_new_fid(pClient->c);
+	long long fid = redis_vfs::get_new_fid(pClient->c);
 
-	bool retval = false;
 	if (pFtpServer->Slaves.size() > 0) {
 		//get slave for file
 		unsigned short index = (unsigned short) (0
@@ -2275,36 +2279,54 @@ void* CFtpServer::CClientEntry::StoreThread(void *pvParam)
 		boost::shared_ptr<TTransport> transport(new TBufferedTransport(socket));
 		boost::shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
 		slave::slave_servicesClient client(protocol);
-		slave::Params p;
+		slave::StorRetVal retval;
 
-		p.client_ip = pClient->szDataIp;
-		p.client_port = pClient->usDataPort;
-		p.fid = fid;
-		p.restart_at = pClient->CurrentTransfer.RestartAt;
-		p.transfer_buffer_size = pFtpServer->GetTransferBufferSize();
+		if (pClient->eDataConnection == PORT) {
 
-		pClient->SendReply("150 Opening data channel.");
+			//build Active Params
+			slave::ActiveParams p;
+			p.client_ip = pClient->ulClientIP;
+			p.client_port = pClient->usDataPort;
+			p.fid = fid;
+			p.restart_at = pClient->CurrentTransfer.RestartAt;
+			p.transfer_buffer_size = pFtpServer->GetTransferBufferSize();
+			p.server_ip = pClient->ulServerIP;
+			unsigned short int usLen, usStart;
+			pFtpServer->GetDataPortRange(&usStart, &usLen);
+			p.server_port = (unsigned short) (usStart + (rand() % usLen));
 
-		bool retval;
-		try {
-			transport->open();
-			retval = client.ActiveStoreTransfer(p, iflags);
-			transport->close();
-		} catch (TException &tx) {
-			printf("ERROR: %s\n", tx.what());
-			retval = false;
+			//update client
+			pClient->SendReply("150 Opening data channel.");
+
+			//call RPC
+			try {
+				transport->open();
+				client.ActiveStoreTransfer(retval, p, iflags);
+				transport->close();
+			} catch (TException &tx) {
+				pFtpServer->OnServerEventCb(THRIFT_ERROR);
+				pClient->SendReply("550 Can't store file.");
+				goto endofstore;
+			}
 		}
 
-		//update redis
-		//redis_file::save_new_file(pClient->c, path, mode, len , pClient->uid , pClient->gid, fid, slave);
+		if (pClient->eDataConnection == PASV) {
 
-	}
+			//TODO
+		}
 
-	if (retval) {
-		pClient->SendReply("550 Can't store file.");
+		//check return
+		if (retval.size >= 0)
+			redis_vfs::save_new_file(pClient->c,
+					pClient->CurrentTransfer.szPath, 0777, retval.size,
+					pClient->pUser->uid, pClient->pUser->gid, fid, slave);
+
+		pClient->SendReply(retval.msg.c_str());
+
 	} else
-		pClient->SendReply("226 Transfer complete.");
+		pClient->SendReply("550 Can't store file.");
 
+	endofstore:
 	pFtpServer->ClientListLock.Enter();
 	{
 		pClient->ResetDataConnection(false); // do not wait sync on self
@@ -2333,90 +2355,60 @@ void* CFtpServer::CClientEntry::RetrieveThread(void *pvParam)
 	CFtpServer::CClientEntry *pClient = (CFtpServer::CClientEntry*) pvParam;
 	CFtpServer *pFtpServer = pClient->pFtpServer;
 	struct DataTransfer_t *pTransfer = &pClient->CurrentTransfer;
+	long long fid = redis_vfs::lookup_fid(pClient->c, pTransfer->szPath);
+	if (pFtpServer->Slaves.size() > 0 && fid >= 0) {
 
-	int hFile = -1;
-	int BlockSize = 0;
-	int len = 0;
+		slave_info slave = redis_vfs::lookup_slave_info(pClient->c,
+				pTransfer->szPath);
 
-	unsigned int uiBufferSize = pFtpServer->GetTransferBufferSize();
-	char *pBuffer = new char[uiBufferSize];
+		//send rpc
+		boost::shared_ptr<TTransport> socket(
+				new TSocket(slave.host, slave.port));
+		boost::shared_ptr<TTransport> transport(new TBufferedTransport(socket));
+		boost::shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
+		slave::slave_servicesClient client(protocol);
+		string retval;
 
-#ifdef CFTPSERVER_ENABLE_ZLIB
-	int nFlush, nRet;
-	char *pOutBuffer = NULL;
-	if( pTransfer->eDataMode == ZLIB ) {
-		pOutBuffer = new char[ uiBufferSize ];
-		if( !pOutBuffer || !pBuffer ) {
-			pFtpServer->OnServerEventCb( MEM_ERROR );
-			goto endofretrieve;
-		}
-		if( !pClient->InitZlib( pTransfer ) )
-		goto endofretrieve;
-		pTransfer->zStream.next_in = (Bytef*) pBuffer;
-		pTransfer->zStream.next_out = (Bytef*) pOutBuffer;
-		pTransfer->zStream.avail_out = uiBufferSize;
-	}
-#else
-	if (!pBuffer) {
-		pFtpServer->OnServerEventCb(MEM_ERROR);
-		goto endofretrieve;
-	}
-#endif
+		if (pClient->eDataConnection == PORT) {
 
-	hFile = open(pTransfer->szPath, O_RDONLY | O_BINARY);
-	if (hFile != -1) {
-		if (pTransfer->RestartAt == 0
-				|| (pTransfer->RestartAt > 0
-						&& lseek(hFile, pTransfer->RestartAt, SEEK_SET) != -1)) {
-			while (pClient->DataSock != INVALID_SOCKET
-					&& (BlockSize = read(hFile, pBuffer, uiBufferSize)) > 0) {
-#ifdef CFTPSERVER_ENABLE_ZLIB
-				if( pTransfer->eDataMode == ZLIB ) {
-					nFlush = eof( hFile ) ? Z_FINISH : Z_NO_FLUSH;
-					pTransfer->zStream.avail_in = BlockSize;
-					pTransfer->zStream.next_in = (Bytef*) pBuffer;
-					do
-					{
-						nRet = deflate( &pTransfer->zStream, nFlush );
-						if( nRet == Z_STREAM_ERROR )
-						break;
-						if( pTransfer->zStream.avail_out == 0 || nRet == Z_STREAM_END ) {
-							len = send( pClient->DataSock, pOutBuffer, uiBufferSize - pTransfer->zStream.avail_out, MSG_NOSIGNAL );
-							if( len <= 0 )
-							{	len =-1; break;}
-							pTransfer->zStream.next_out = (Bytef*) pOutBuffer;
-							pTransfer->zStream.avail_out = uiBufferSize;
-						}
-					}while( pTransfer->zStream.avail_in != 0 || ( nFlush == Z_FINISH && nRet == Z_OK ) );
-					if( len < 0 || nRet == Z_STREAM_ERROR || nFlush == Z_FINISH )
-					break;
-				} else
-#endif
-				{
-					len = send(pClient->DataSock, pBuffer, BlockSize,
-							MSG_NOSIGNAL);
-					if (len <= 0)
-						break;
-				}
+			//build Active Params
+			slave::ActiveParams p;
+			p.client_ip = pClient->ulClientIP;
+			p.client_port = pClient->usDataPort;
+			p.fid = fid;
+			p.restart_at = pClient->CurrentTransfer.RestartAt;
+			p.transfer_buffer_size = pFtpServer->GetTransferBufferSize();
+			p.server_ip = pClient->ulServerIP;
+			unsigned short int usLen, usStart;
+			pFtpServer->GetDataPortRange(&usStart, &usLen);
+			p.server_port = (unsigned short) (usStart + (rand() % usLen));
+
+			//update client
+			pClient->SendReply("150 Opening data channel.");
+
+			//call RPC
+			try {
+				transport->open();
+				client.ActiveRetrieveTransfer(retval, p);
+				transport->close();
+			} catch (TException &tx) {
+				pFtpServer->OnServerEventCb(THRIFT_ERROR);
+				pClient->SendReply("550 Can't retrieve File.");
+				goto endofretrieve;
 			}
-		} // else Internal Error
-		close(hFile);
-	}
+		}
 
-	endofretrieve: if (pBuffer)
-		delete[] pBuffer;
-#ifdef CFTPSERVER_ENABLE_ZLIB
-	if( pTransfer->eDataMode == ZLIB ) {
-		deflateEnd( &pTransfer->zStream );
-		if( pOutBuffer ) delete [] pOutBuffer;
-	}
-#endif
+		if (pClient->eDataConnection == PASV) {
 
-	if (len < 0 || hFile == -1) {
-		pClient->SendReply("550 Can't retrieve File.");
+			//TODO
+		}
+
+		pClient->SendReply(retval.c_str());
+
 	} else
-		pClient->SendReply("226 Transfer complete.");
+		pClient->SendReply("550 Can't retrieve File.");
 
+	endofretrieve:
 	pFtpServer->ClientListLock.Enter();
 	{
 		pClient->ResetDataConnection(false); // do not wait sync on self
@@ -2672,8 +2664,12 @@ bool CFtpServer::CEnumFileInfo::FindFirst(const char *pszPath) {
 		if( FindNext() )
 		return true;
 #else
+		int iPathLen = strlen(pszPath);
+		char pszTempPath[MAX_PATH + 1];
+		sprintf(pszTempPath, "%s%s", pszPath,
+				(pszPath[iPathLen - 1] != '/') ? "/" : "");
 
-		if ((vdp = redis_vfs::opendir(c, pszPath)) != NULL) {
+		if ((vdp = redis_vfs::opendir(c, pszTempPath)) != NULL) {
 			if (FindNext())
 				return true;
 		}
@@ -2712,21 +2708,22 @@ bool CFtpServer::CEnumFileInfo::FindNext() {
 	}
 #else
 
-	struct dirent *dir_entry_result = NULL;
-	if (redis_vfs::readdir_r(vdp, &dir_entry, &dir_entry_result)
-			== 0&& dir_entry_result != NULL) {
+	if ((dir_entry = redis_vfs::readdir(vdp)) != NULL) {
+
 		int iDirPathLen = strlen(szDirPath);
-		int iFileNameLen = strlen(dir_entry.d_name);
-		if (iDirPathLen + iFileNameLen >= MAX_PATH)
+		int iFileNameLen = strlen(dir_entry->d_name);
+		if (iDirPathLen + iFileNameLen >= MAX_PATH) {
+			delete dir_entry;
 			return false;
+		}
 
 		sprintf(szFullPath, "%s%s%s", szDirPath,
 				(szDirPath[iDirPathLen - 1] == '/') ? "" : "/",
-				dir_entry.d_name);
+				dir_entry->d_name);
 		pszName = szFullPath + strlen(szDirPath)
 				+ ((szDirPath[iDirPathLen - 1] != '/') ? 1 : 0);
 
-		if (stat(szFullPath, &st) == 0) {
+		if (redis_vfs::stat(c, szFullPath, &st) == 0) {
 			size = st.st_size;
 			mode = st.st_mode;
 			mtime = st.st_mtime;
@@ -2735,6 +2732,7 @@ bool CFtpServer::CEnumFileInfo::FindNext() {
 			mode = 0;
 			mtime = 0;
 		}
+		delete dir_entry;
 		return true;
 	}
 

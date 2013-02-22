@@ -111,8 +111,8 @@ uint32_t slave_services_ActiveStoreTransfer_result::read(::apache::thrift::proto
     switch (fid)
     {
       case 0:
-        if (ftype == ::apache::thrift::protocol::T_BOOL) {
-          xfer += iprot->readBool(this->success);
+        if (ftype == ::apache::thrift::protocol::T_STRUCT) {
+          xfer += this->success.read(iprot);
           this->__isset.success = true;
         } else {
           xfer += iprot->skip(ftype);
@@ -137,8 +137,8 @@ uint32_t slave_services_ActiveStoreTransfer_result::write(::apache::thrift::prot
   xfer += oprot->writeStructBegin("slave_services_ActiveStoreTransfer_result");
 
   if (this->__isset.success) {
-    xfer += oprot->writeFieldBegin("success", ::apache::thrift::protocol::T_BOOL, 0);
-    xfer += oprot->writeBool(this->success);
+    xfer += oprot->writeFieldBegin("success", ::apache::thrift::protocol::T_STRUCT, 0);
+    xfer += this->success.write(oprot);
     xfer += oprot->writeFieldEnd();
   }
   xfer += oprot->writeFieldStop();
@@ -167,8 +167,8 @@ uint32_t slave_services_ActiveStoreTransfer_presult::read(::apache::thrift::prot
     switch (fid)
     {
       case 0:
-        if (ftype == ::apache::thrift::protocol::T_BOOL) {
-          xfer += iprot->readBool((*(this->success)));
+        if (ftype == ::apache::thrift::protocol::T_STRUCT) {
+          xfer += (*(this->success)).read(iprot);
           this->__isset.success = true;
         } else {
           xfer += iprot->skip(ftype);
@@ -289,8 +289,8 @@ uint32_t slave_services_PasvStoreTransfer_result::read(::apache::thrift::protoco
     switch (fid)
     {
       case 0:
-        if (ftype == ::apache::thrift::protocol::T_BOOL) {
-          xfer += iprot->readBool(this->success);
+        if (ftype == ::apache::thrift::protocol::T_STRUCT) {
+          xfer += this->success.read(iprot);
           this->__isset.success = true;
         } else {
           xfer += iprot->skip(ftype);
@@ -315,8 +315,8 @@ uint32_t slave_services_PasvStoreTransfer_result::write(::apache::thrift::protoc
   xfer += oprot->writeStructBegin("slave_services_PasvStoreTransfer_result");
 
   if (this->__isset.success) {
-    xfer += oprot->writeFieldBegin("success", ::apache::thrift::protocol::T_BOOL, 0);
-    xfer += oprot->writeBool(this->success);
+    xfer += oprot->writeFieldBegin("success", ::apache::thrift::protocol::T_STRUCT, 0);
+    xfer += this->success.write(oprot);
     xfer += oprot->writeFieldEnd();
   }
   xfer += oprot->writeFieldStop();
@@ -345,8 +345,8 @@ uint32_t slave_services_PasvStoreTransfer_presult::read(::apache::thrift::protoc
     switch (fid)
     {
       case 0:
-        if (ftype == ::apache::thrift::protocol::T_BOOL) {
-          xfer += iprot->readBool((*(this->success)));
+        if (ftype == ::apache::thrift::protocol::T_STRUCT) {
+          xfer += (*(this->success)).read(iprot);
           this->__isset.success = true;
         } else {
           xfer += iprot->skip(ftype);
@@ -451,8 +451,8 @@ uint32_t slave_services_ActiveRetrieveTransfer_result::read(::apache::thrift::pr
     switch (fid)
     {
       case 0:
-        if (ftype == ::apache::thrift::protocol::T_BOOL) {
-          xfer += iprot->readBool(this->success);
+        if (ftype == ::apache::thrift::protocol::T_STRING) {
+          xfer += iprot->readString(this->success);
           this->__isset.success = true;
         } else {
           xfer += iprot->skip(ftype);
@@ -477,8 +477,8 @@ uint32_t slave_services_ActiveRetrieveTransfer_result::write(::apache::thrift::p
   xfer += oprot->writeStructBegin("slave_services_ActiveRetrieveTransfer_result");
 
   if (this->__isset.success) {
-    xfer += oprot->writeFieldBegin("success", ::apache::thrift::protocol::T_BOOL, 0);
-    xfer += oprot->writeBool(this->success);
+    xfer += oprot->writeFieldBegin("success", ::apache::thrift::protocol::T_STRING, 0);
+    xfer += oprot->writeString(this->success);
     xfer += oprot->writeFieldEnd();
   }
   xfer += oprot->writeFieldStop();
@@ -507,8 +507,8 @@ uint32_t slave_services_ActiveRetrieveTransfer_presult::read(::apache::thrift::p
     switch (fid)
     {
       case 0:
-        if (ftype == ::apache::thrift::protocol::T_BOOL) {
-          xfer += iprot->readBool((*(this->success)));
+        if (ftype == ::apache::thrift::protocol::T_STRING) {
+          xfer += iprot->readString((*(this->success)));
           this->__isset.success = true;
         } else {
           xfer += iprot->skip(ftype);
@@ -613,8 +613,8 @@ uint32_t slave_services_PasvRetrieveTransfer_result::read(::apache::thrift::prot
     switch (fid)
     {
       case 0:
-        if (ftype == ::apache::thrift::protocol::T_BOOL) {
-          xfer += iprot->readBool(this->success);
+        if (ftype == ::apache::thrift::protocol::T_STRING) {
+          xfer += iprot->readString(this->success);
           this->__isset.success = true;
         } else {
           xfer += iprot->skip(ftype);
@@ -639,8 +639,8 @@ uint32_t slave_services_PasvRetrieveTransfer_result::write(::apache::thrift::pro
   xfer += oprot->writeStructBegin("slave_services_PasvRetrieveTransfer_result");
 
   if (this->__isset.success) {
-    xfer += oprot->writeFieldBegin("success", ::apache::thrift::protocol::T_BOOL, 0);
-    xfer += oprot->writeBool(this->success);
+    xfer += oprot->writeFieldBegin("success", ::apache::thrift::protocol::T_STRING, 0);
+    xfer += oprot->writeString(this->success);
     xfer += oprot->writeFieldEnd();
   }
   xfer += oprot->writeFieldStop();
@@ -669,8 +669,8 @@ uint32_t slave_services_PasvRetrieveTransfer_presult::read(::apache::thrift::pro
     switch (fid)
     {
       case 0:
-        if (ftype == ::apache::thrift::protocol::T_BOOL) {
-          xfer += iprot->readBool((*(this->success)));
+        if (ftype == ::apache::thrift::protocol::T_STRING) {
+          xfer += iprot->readString((*(this->success)));
           this->__isset.success = true;
         } else {
           xfer += iprot->skip(ftype);
@@ -688,13 +688,13 @@ uint32_t slave_services_PasvRetrieveTransfer_presult::read(::apache::thrift::pro
   return xfer;
 }
 
-bool slave_servicesClient::ActiveStoreTransfer(const Params& p, const int32_t iflags)
+void slave_servicesClient::ActiveStoreTransfer(StorRetVal& _return, const ActiveParams& p, const int32_t iflags)
 {
   send_ActiveStoreTransfer(p, iflags);
-  return recv_ActiveStoreTransfer();
+  recv_ActiveStoreTransfer(_return);
 }
 
-void slave_servicesClient::send_ActiveStoreTransfer(const Params& p, const int32_t iflags)
+void slave_servicesClient::send_ActiveStoreTransfer(const ActiveParams& p, const int32_t iflags)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("ActiveStoreTransfer", ::apache::thrift::protocol::T_CALL, cseqid);
@@ -709,7 +709,7 @@ void slave_servicesClient::send_ActiveStoreTransfer(const Params& p, const int32
   oprot_->getTransport()->flush();
 }
 
-bool slave_servicesClient::recv_ActiveStoreTransfer()
+void slave_servicesClient::recv_ActiveStoreTransfer(StorRetVal& _return)
 {
 
   int32_t rseqid = 0;
@@ -734,7 +734,6 @@ bool slave_servicesClient::recv_ActiveStoreTransfer()
     iprot_->readMessageEnd();
     iprot_->getTransport()->readEnd();
   }
-  bool _return;
   slave_services_ActiveStoreTransfer_presult result;
   result.success = &_return;
   result.read(iprot_);
@@ -742,18 +741,19 @@ bool slave_servicesClient::recv_ActiveStoreTransfer()
   iprot_->getTransport()->readEnd();
 
   if (result.__isset.success) {
-    return _return;
+    // _return pointer has now been filled
+    return;
   }
   throw ::apache::thrift::TApplicationException(::apache::thrift::TApplicationException::MISSING_RESULT, "ActiveStoreTransfer failed: unknown result");
 }
 
-bool slave_servicesClient::PasvStoreTransfer(const Params& p, const int32_t iflags)
+void slave_servicesClient::PasvStoreTransfer(StorRetVal& _return, const PasvParams& p, const int32_t iflags)
 {
   send_PasvStoreTransfer(p, iflags);
-  return recv_PasvStoreTransfer();
+  recv_PasvStoreTransfer(_return);
 }
 
-void slave_servicesClient::send_PasvStoreTransfer(const Params& p, const int32_t iflags)
+void slave_servicesClient::send_PasvStoreTransfer(const PasvParams& p, const int32_t iflags)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("PasvStoreTransfer", ::apache::thrift::protocol::T_CALL, cseqid);
@@ -768,7 +768,7 @@ void slave_servicesClient::send_PasvStoreTransfer(const Params& p, const int32_t
   oprot_->getTransport()->flush();
 }
 
-bool slave_servicesClient::recv_PasvStoreTransfer()
+void slave_servicesClient::recv_PasvStoreTransfer(StorRetVal& _return)
 {
 
   int32_t rseqid = 0;
@@ -793,7 +793,6 @@ bool slave_servicesClient::recv_PasvStoreTransfer()
     iprot_->readMessageEnd();
     iprot_->getTransport()->readEnd();
   }
-  bool _return;
   slave_services_PasvStoreTransfer_presult result;
   result.success = &_return;
   result.read(iprot_);
@@ -801,18 +800,19 @@ bool slave_servicesClient::recv_PasvStoreTransfer()
   iprot_->getTransport()->readEnd();
 
   if (result.__isset.success) {
-    return _return;
+    // _return pointer has now been filled
+    return;
   }
   throw ::apache::thrift::TApplicationException(::apache::thrift::TApplicationException::MISSING_RESULT, "PasvStoreTransfer failed: unknown result");
 }
 
-bool slave_servicesClient::ActiveRetrieveTransfer(const Params& p)
+void slave_servicesClient::ActiveRetrieveTransfer(std::string& _return, const ActiveParams& p)
 {
   send_ActiveRetrieveTransfer(p);
-  return recv_ActiveRetrieveTransfer();
+  recv_ActiveRetrieveTransfer(_return);
 }
 
-void slave_servicesClient::send_ActiveRetrieveTransfer(const Params& p)
+void slave_servicesClient::send_ActiveRetrieveTransfer(const ActiveParams& p)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("ActiveRetrieveTransfer", ::apache::thrift::protocol::T_CALL, cseqid);
@@ -826,7 +826,7 @@ void slave_servicesClient::send_ActiveRetrieveTransfer(const Params& p)
   oprot_->getTransport()->flush();
 }
 
-bool slave_servicesClient::recv_ActiveRetrieveTransfer()
+void slave_servicesClient::recv_ActiveRetrieveTransfer(std::string& _return)
 {
 
   int32_t rseqid = 0;
@@ -851,7 +851,6 @@ bool slave_servicesClient::recv_ActiveRetrieveTransfer()
     iprot_->readMessageEnd();
     iprot_->getTransport()->readEnd();
   }
-  bool _return;
   slave_services_ActiveRetrieveTransfer_presult result;
   result.success = &_return;
   result.read(iprot_);
@@ -859,18 +858,19 @@ bool slave_servicesClient::recv_ActiveRetrieveTransfer()
   iprot_->getTransport()->readEnd();
 
   if (result.__isset.success) {
-    return _return;
+    // _return pointer has now been filled
+    return;
   }
   throw ::apache::thrift::TApplicationException(::apache::thrift::TApplicationException::MISSING_RESULT, "ActiveRetrieveTransfer failed: unknown result");
 }
 
-bool slave_servicesClient::PasvRetrieveTransfer(const Params& p)
+void slave_servicesClient::PasvRetrieveTransfer(std::string& _return, const PasvParams& p)
 {
   send_PasvRetrieveTransfer(p);
-  return recv_PasvRetrieveTransfer();
+  recv_PasvRetrieveTransfer(_return);
 }
 
-void slave_servicesClient::send_PasvRetrieveTransfer(const Params& p)
+void slave_servicesClient::send_PasvRetrieveTransfer(const PasvParams& p)
 {
   int32_t cseqid = 0;
   oprot_->writeMessageBegin("PasvRetrieveTransfer", ::apache::thrift::protocol::T_CALL, cseqid);
@@ -884,7 +884,7 @@ void slave_servicesClient::send_PasvRetrieveTransfer(const Params& p)
   oprot_->getTransport()->flush();
 }
 
-bool slave_servicesClient::recv_PasvRetrieveTransfer()
+void slave_servicesClient::recv_PasvRetrieveTransfer(std::string& _return)
 {
 
   int32_t rseqid = 0;
@@ -909,7 +909,6 @@ bool slave_servicesClient::recv_PasvRetrieveTransfer()
     iprot_->readMessageEnd();
     iprot_->getTransport()->readEnd();
   }
-  bool _return;
   slave_services_PasvRetrieveTransfer_presult result;
   result.success = &_return;
   result.read(iprot_);
@@ -917,7 +916,8 @@ bool slave_servicesClient::recv_PasvRetrieveTransfer()
   iprot_->getTransport()->readEnd();
 
   if (result.__isset.success) {
-    return _return;
+    // _return pointer has now been filled
+    return;
   }
   throw ::apache::thrift::TApplicationException(::apache::thrift::TApplicationException::MISSING_RESULT, "PasvRetrieveTransfer failed: unknown result");
 }
@@ -964,7 +964,7 @@ void slave_servicesProcessor::process_ActiveStoreTransfer(int32_t seqid, ::apach
 
   slave_services_ActiveStoreTransfer_result result;
   try {
-    result.success = iface_->ActiveStoreTransfer(args.p, args.iflags);
+    iface_->ActiveStoreTransfer(result.success, args.p, args.iflags);
     result.__isset.success = true;
   } catch (const std::exception& e) {
     if (this->eventHandler_.get() != NULL) {
@@ -1018,7 +1018,7 @@ void slave_servicesProcessor::process_PasvStoreTransfer(int32_t seqid, ::apache:
 
   slave_services_PasvStoreTransfer_result result;
   try {
-    result.success = iface_->PasvStoreTransfer(args.p, args.iflags);
+    iface_->PasvStoreTransfer(result.success, args.p, args.iflags);
     result.__isset.success = true;
   } catch (const std::exception& e) {
     if (this->eventHandler_.get() != NULL) {
@@ -1072,7 +1072,7 @@ void slave_servicesProcessor::process_ActiveRetrieveTransfer(int32_t seqid, ::ap
 
   slave_services_ActiveRetrieveTransfer_result result;
   try {
-    result.success = iface_->ActiveRetrieveTransfer(args.p);
+    iface_->ActiveRetrieveTransfer(result.success, args.p);
     result.__isset.success = true;
   } catch (const std::exception& e) {
     if (this->eventHandler_.get() != NULL) {
@@ -1126,7 +1126,7 @@ void slave_servicesProcessor::process_PasvRetrieveTransfer(int32_t seqid, ::apac
 
   slave_services_PasvRetrieveTransfer_result result;
   try {
-    result.success = iface_->PasvRetrieveTransfer(args.p);
+    iface_->PasvRetrieveTransfer(result.success, args.p);
     result.__isset.success = true;
   } catch (const std::exception& e) {
     if (this->eventHandler_.get() != NULL) {

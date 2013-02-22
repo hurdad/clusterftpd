@@ -13,16 +13,16 @@ AC_CHECK_LIB([hiredis], [main], [],[
          echo "hiredis library is required for this program"
          exit -1])
 
-AC_CHECK_LIB([z], [main], [],[
-         echo "zlib library is required for this program"
-         exit -1])
-
 AC_CHECK_LIB([thrift], [main], [],[
          echo "thrift library is required for this program"
          exit -1])
 
 AC_CHECK_LIB([config++], [main], [],[
          echo "libconfig library is required for this program"
+         exit -1])
+         
+AC_CHECK_LIB([boost_program_options], [main], [],[
+         echo "boost_program_options library is required for this program"
          exit -1])
          
 AC_CANONICAL_SYSTEM

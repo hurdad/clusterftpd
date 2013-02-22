@@ -366,35 +366,43 @@ public:
 	}
 
 	//Set Redis Connection Config
-	void SetRedisConnectionConfig(std::string ip, unsigned short port){
+	void SetRedisConnectionConfig(std::string ip, unsigned short port,
+			unsigned short db) {
 		RedisConfig.ip = ip;
 		RedisConfig.port = port;
+		RedisConfig.db = db;
 	}
 
 	// Get Redis Connection IP
 	// Default = '127.0.0.1'
-	std::string GetRedisConnectionIP() const{
+	std::string GetRedisConnectionIP() const {
 		return RedisConfig.ip;
 	}
 
 	// Get Redis Connection Port
 	// Default = 6379
-	unsigned short GetRedisConnectionPort() const{
-			return RedisConfig.port;
+	unsigned short GetRedisConnectionPort() const {
+		return RedisConfig.port;
+	}
+
+	// Get Redis Connection DB
+	// DB = 1
+	unsigned short GetRedisConnectionDB() const {
+		return RedisConfig.db;
 	}
 
 	// Set Slaves set
 	void SetSlaves(vector<slave_info> slaves) {
 		Slaves.clear();
-		for (vector<slave_info>::iterator it=slaves.begin(); it!=slaves.end(); ++it)
+		for (vector<slave_info>::iterator it = slaves.begin();
+				it != slaves.end(); ++it)
 			Slaves.push_back(*it);
 	}
 
 	// Get Slaves set
-	vector<slave_info> GetSlaves(){
+	vector<slave_info> GetSlaves() {
 		return Slaves;
 	}
-
 
 #ifdef CFTPSERVER_ENABLE_ZLIB
 	/**
@@ -465,12 +473,15 @@ public:
 		// Server event
 		START_LISTENING,
 		STOP_LISTENING,
+		ERROR_LISTENING,
 		START_ACCEPTING,
 		STOP_ACCEPTING,
 		MEM_ERROR,
 		THREAD_ERROR,
 		ZLIB_VERSION_ERROR,
-		ZLIB_STREAM_ERROR
+		ZLIB_STREAM_ERROR,
+		THRIFT_ERROR,
+		REDIS_CONNECT_ERROR
 	};
 
 	typedef void (*OnServerEventCallback_t)(int Event);
@@ -729,6 +740,7 @@ private:
 	struct {
 		std::string ip;
 		unsigned short int port;
+		unsigned short int db;
 	} RedisConfig;
 
 	vector<slave_info> Slaves;
@@ -943,7 +955,6 @@ public:
 
 private:
 
-
 	////////////////////////////////////////
 	// SHELL
 	////////////////////////////////////////
@@ -965,7 +976,6 @@ private:
 	}volatile eStatus;
 
 	unsigned long ulDataIp;
-	char szDataIp[32];
 	unsigned short usDataPort;
 
 	char szWorkingDir[MAX_PATH + 3 + 1];
@@ -1192,7 +1202,6 @@ private:
 	//Redis Connection
 	redisContext *c;
 
-
 	/**
 	 * Send a reply to the Client.
 	 *
@@ -1241,7 +1250,7 @@ public:
 	DIR *dp;
 	VDIR *vdp;
 	struct stat st;
-	struct dirent dir_entry;
+	struct dirent *dir_entry;
 #endif
 
 	char *pszName;

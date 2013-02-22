@@ -39,18 +39,19 @@ void InitServerConfig() {
 
 }
 
-void LoadServerConfig(char * configFile) {
+void LoadServerConfig(const char * configFile) {
 	Config cfg;
 
 	// Read the file. If there is an error, report it and exit.
 	try {
 		cfg.readFile(configFile);
 	} catch (const FileIOException &fioex) {
-		std::cerr << "I/O error while reading config file." << std::endl;
+		std::cerr << "Error while reading config file: " << configFile
+				<< std::endl;
 		exit (EXIT_FAILURE);
 	} catch (const ParseException &pex) {
-		std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-				<< " - " << pex.getError() << std::endl;
+		std::cerr << "Configuration parse error at " << pex.getFile() << ":"
+				<< pex.getLine() << " - " << pex.getError() << std::endl;
 		exit (EXIT_FAILURE);
 	}
 
@@ -96,7 +97,8 @@ void LoadServerConfig(char * configFile) {
 			const char* host = slaves[i]["host"];
 			string shost(host);
 			myinfo.host = shost;
-			myinfo.port = (int)slaves[i]["port"];;
+			myinfo.port = (int) slaves[i]["port"];
+			;
 
 			server.Slaves.push_back(myinfo);
 		}
@@ -107,6 +109,74 @@ void LoadServerConfig(char * configFile) {
 	cfg.lookupValue("EnableClientLogging", server.EnableClientLogging);
 	cfg.lookupValue("EnableServerLogging", server.EnableServerLogging);
 
+}
+
+void InitRedis() {
+
+	//connect
+	redisContext *c = redisConnect(server.RedisIP.c_str(), server.RedisPort);
+	if (c != NULL && c->err) {
+		cout << "Redis Error: " << c->errstr << endl;
+		return;
+	}
+
+	//select database
+	redisReply* reply = (redisReply*) redisCommand(c, "SELECT %u",
+			server.RedisDB);
+	if (reply != NULL && c->err) {
+		cout << "Redis Error: " << c->errstr << endl;
+		return;
+	}
+	freeReplyObject(reply);
+
+	cout
+			<< "Warning!: This will wipe ALL user and virtual filesystem data. Continue? (y/n)"
+			<< endl;
+	string input;
+	cin >> input;
+	while (true) {
+
+		if (input == "n")
+			return;
+
+		if (input == "y")
+			break;
+
+		cout << "Invalid response (y/n)" << endl;
+		cin >> input;
+	}
+
+	//wipe db
+	redisCommand(c, "FLUSHDB");
+
+	//init counter
+	redisCommand(c, "SET uid_counter 1");
+	redisCommand(c, "SET gid_counter 1");
+	redisCommand(c, "HSET group:1 STAFF");
+	redisCommand(c, "SET fid_counter 0");
+
+	//add admin user
+	redisCommand(c, "HSET username:admin password admin");
+	redisCommand(c, "HSET username:admin start_directory /");
+	redisCommand(c, "HSET username:admin enabled true");
+	redisCommand(c, "HSET username:admin uid 1");
+	redisCommand(c, "HSET username:admin gid 1");
+	redisCommand(c, "HSET username:admin max_logins 0");
+	redisCommand(c, "HSET username:admin privileges ?");
+
+	//root fs
+	redisCommand(c, "HSET dirent:0 .foo -1");
+
+	//root folder
+	redisCommand(c, "HSET stat:0 st_mode 16895");
+	redisCommand(c, "HSET stat:0 st_size 4096");
+	redisCommand(c, "HSET stat:0 st_uid 1");
+	redisCommand(c, "HSET stat:0 st_gid 1");
+	redisCommand(c, "HSET stat:0 st_mtime %u", time(NULL));
+
+	redisFree(c);
+
+	cout << "Init Complete" << endl;
 }
 
 }

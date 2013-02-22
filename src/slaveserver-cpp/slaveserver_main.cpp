@@ -28,10 +28,8 @@ using namespace boost;
 
 int main(int argc, char * argv[]) {
 
-	if(argc != 2){
+	if (argc != 2) {
 		cout << "Usage: slaveserver slaveserver-sample.cfg" << endl;
-		//log error
-		//Log::OnServerEvent(
 		return 1;
 	}
 
@@ -48,7 +46,8 @@ int main(int argc, char * argv[]) {
 			new TBufferedTransportFactory());
 
 	shared_ptr<ThreadManager> threadManager =
-			ThreadManager::newSimpleThreadManager(slave_server::server.WorkerCount);
+			ThreadManager::newSimpleThreadManager(
+					slave_server::server.WorkerCount);
 	shared_ptr<PosixThreadFactory> threadFactory =
 			shared_ptr<PosixThreadFactory>(new PosixThreadFactory());
 	threadManager->threadFactory(threadFactory);
