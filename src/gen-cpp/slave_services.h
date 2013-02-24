@@ -15,6 +15,8 @@ namespace slave {
 class slave_servicesIf {
  public:
   virtual ~slave_servicesIf() {}
+  virtual void InitPasvDataConnection(std::string& _return, const PasvParams& p, const int32_t startPort, const int16_t portLen) = 0;
+  virtual void OpenPasvDataConnection(std::string& _return, const PasvParams& p) = 0;
   virtual void ActiveStoreTransfer(StorRetVal& _return, const ActiveParams& p, const int32_t iflags) = 0;
   virtual void PasvStoreTransfer(StorRetVal& _return, const PasvParams& p, const int32_t iflags) = 0;
   virtual void ActiveRetrieveTransfer(std::string& _return, const ActiveParams& p) = 0;
@@ -48,6 +50,12 @@ class slave_servicesIfSingletonFactory : virtual public slave_servicesIfFactory 
 class slave_servicesNull : virtual public slave_servicesIf {
  public:
   virtual ~slave_servicesNull() {}
+  void InitPasvDataConnection(std::string& /* _return */, const PasvParams& /* p */, const int32_t /* startPort */, const int16_t /* portLen */) {
+    return;
+  }
+  void OpenPasvDataConnection(std::string& /* _return */, const PasvParams& /* p */) {
+    return;
+  }
   void ActiveStoreTransfer(StorRetVal& /* _return */, const ActiveParams& /* p */, const int32_t /* iflags */) {
     return;
   }
@@ -60,6 +68,240 @@ class slave_servicesNull : virtual public slave_servicesIf {
   void PasvRetrieveTransfer(std::string& /* _return */, const PasvParams& /* p */) {
     return;
   }
+};
+
+typedef struct _slave_services_InitPasvDataConnection_args__isset {
+  _slave_services_InitPasvDataConnection_args__isset() : p(false), startPort(false), portLen(false) {}
+  bool p;
+  bool startPort;
+  bool portLen;
+} _slave_services_InitPasvDataConnection_args__isset;
+
+class slave_services_InitPasvDataConnection_args {
+ public:
+
+  slave_services_InitPasvDataConnection_args() : startPort(0), portLen(0) {
+  }
+
+  virtual ~slave_services_InitPasvDataConnection_args() throw() {}
+
+  PasvParams p;
+  int32_t startPort;
+  int16_t portLen;
+
+  _slave_services_InitPasvDataConnection_args__isset __isset;
+
+  void __set_p(const PasvParams& val) {
+    p = val;
+  }
+
+  void __set_startPort(const int32_t val) {
+    startPort = val;
+  }
+
+  void __set_portLen(const int16_t val) {
+    portLen = val;
+  }
+
+  bool operator == (const slave_services_InitPasvDataConnection_args & rhs) const
+  {
+    if (!(p == rhs.p))
+      return false;
+    if (!(startPort == rhs.startPort))
+      return false;
+    if (!(portLen == rhs.portLen))
+      return false;
+    return true;
+  }
+  bool operator != (const slave_services_InitPasvDataConnection_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const slave_services_InitPasvDataConnection_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class slave_services_InitPasvDataConnection_pargs {
+ public:
+
+
+  virtual ~slave_services_InitPasvDataConnection_pargs() throw() {}
+
+  const PasvParams* p;
+  const int32_t* startPort;
+  const int16_t* portLen;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _slave_services_InitPasvDataConnection_result__isset {
+  _slave_services_InitPasvDataConnection_result__isset() : success(false) {}
+  bool success;
+} _slave_services_InitPasvDataConnection_result__isset;
+
+class slave_services_InitPasvDataConnection_result {
+ public:
+
+  slave_services_InitPasvDataConnection_result() : success() {
+  }
+
+  virtual ~slave_services_InitPasvDataConnection_result() throw() {}
+
+  std::string success;
+
+  _slave_services_InitPasvDataConnection_result__isset __isset;
+
+  void __set_success(const std::string& val) {
+    success = val;
+  }
+
+  bool operator == (const slave_services_InitPasvDataConnection_result & rhs) const
+  {
+    if (!(success == rhs.success))
+      return false;
+    return true;
+  }
+  bool operator != (const slave_services_InitPasvDataConnection_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const slave_services_InitPasvDataConnection_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _slave_services_InitPasvDataConnection_presult__isset {
+  _slave_services_InitPasvDataConnection_presult__isset() : success(false) {}
+  bool success;
+} _slave_services_InitPasvDataConnection_presult__isset;
+
+class slave_services_InitPasvDataConnection_presult {
+ public:
+
+
+  virtual ~slave_services_InitPasvDataConnection_presult() throw() {}
+
+  std::string* success;
+
+  _slave_services_InitPasvDataConnection_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
+typedef struct _slave_services_OpenPasvDataConnection_args__isset {
+  _slave_services_OpenPasvDataConnection_args__isset() : p(false) {}
+  bool p;
+} _slave_services_OpenPasvDataConnection_args__isset;
+
+class slave_services_OpenPasvDataConnection_args {
+ public:
+
+  slave_services_OpenPasvDataConnection_args() {
+  }
+
+  virtual ~slave_services_OpenPasvDataConnection_args() throw() {}
+
+  PasvParams p;
+
+  _slave_services_OpenPasvDataConnection_args__isset __isset;
+
+  void __set_p(const PasvParams& val) {
+    p = val;
+  }
+
+  bool operator == (const slave_services_OpenPasvDataConnection_args & rhs) const
+  {
+    if (!(p == rhs.p))
+      return false;
+    return true;
+  }
+  bool operator != (const slave_services_OpenPasvDataConnection_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const slave_services_OpenPasvDataConnection_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class slave_services_OpenPasvDataConnection_pargs {
+ public:
+
+
+  virtual ~slave_services_OpenPasvDataConnection_pargs() throw() {}
+
+  const PasvParams* p;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _slave_services_OpenPasvDataConnection_result__isset {
+  _slave_services_OpenPasvDataConnection_result__isset() : success(false) {}
+  bool success;
+} _slave_services_OpenPasvDataConnection_result__isset;
+
+class slave_services_OpenPasvDataConnection_result {
+ public:
+
+  slave_services_OpenPasvDataConnection_result() : success() {
+  }
+
+  virtual ~slave_services_OpenPasvDataConnection_result() throw() {}
+
+  std::string success;
+
+  _slave_services_OpenPasvDataConnection_result__isset __isset;
+
+  void __set_success(const std::string& val) {
+    success = val;
+  }
+
+  bool operator == (const slave_services_OpenPasvDataConnection_result & rhs) const
+  {
+    if (!(success == rhs.success))
+      return false;
+    return true;
+  }
+  bool operator != (const slave_services_OpenPasvDataConnection_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const slave_services_OpenPasvDataConnection_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _slave_services_OpenPasvDataConnection_presult__isset {
+  _slave_services_OpenPasvDataConnection_presult__isset() : success(false) {}
+  bool success;
+} _slave_services_OpenPasvDataConnection_presult__isset;
+
+class slave_services_OpenPasvDataConnection_presult {
+ public:
+
+
+  virtual ~slave_services_OpenPasvDataConnection_presult() throw() {}
+
+  std::string* success;
+
+  _slave_services_OpenPasvDataConnection_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
 };
 
 typedef struct _slave_services_ActiveStoreTransfer_args__isset {
@@ -532,6 +774,12 @@ class slave_servicesClient : virtual public slave_servicesIf {
   boost::shared_ptr< ::apache::thrift::protocol::TProtocol> getOutputProtocol() {
     return poprot_;
   }
+  void InitPasvDataConnection(std::string& _return, const PasvParams& p, const int32_t startPort, const int16_t portLen);
+  void send_InitPasvDataConnection(const PasvParams& p, const int32_t startPort, const int16_t portLen);
+  void recv_InitPasvDataConnection(std::string& _return);
+  void OpenPasvDataConnection(std::string& _return, const PasvParams& p);
+  void send_OpenPasvDataConnection(const PasvParams& p);
+  void recv_OpenPasvDataConnection(std::string& _return);
   void ActiveStoreTransfer(StorRetVal& _return, const ActiveParams& p, const int32_t iflags);
   void send_ActiveStoreTransfer(const ActiveParams& p, const int32_t iflags);
   void recv_ActiveStoreTransfer(StorRetVal& _return);
@@ -559,6 +807,8 @@ class slave_servicesProcessor : public ::apache::thrift::TDispatchProcessor {
   typedef  void (slave_servicesProcessor::*ProcessFunction)(int32_t, ::apache::thrift::protocol::TProtocol*, ::apache::thrift::protocol::TProtocol*, void*);
   typedef std::map<std::string, ProcessFunction> ProcessMap;
   ProcessMap processMap_;
+  void process_InitPasvDataConnection(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_OpenPasvDataConnection(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_ActiveStoreTransfer(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_PasvStoreTransfer(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_ActiveRetrieveTransfer(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
@@ -566,6 +816,8 @@ class slave_servicesProcessor : public ::apache::thrift::TDispatchProcessor {
  public:
   slave_servicesProcessor(boost::shared_ptr<slave_servicesIf> iface) :
     iface_(iface) {
+    processMap_["InitPasvDataConnection"] = &slave_servicesProcessor::process_InitPasvDataConnection;
+    processMap_["OpenPasvDataConnection"] = &slave_servicesProcessor::process_OpenPasvDataConnection;
     processMap_["ActiveStoreTransfer"] = &slave_servicesProcessor::process_ActiveStoreTransfer;
     processMap_["PasvStoreTransfer"] = &slave_servicesProcessor::process_PasvStoreTransfer;
     processMap_["ActiveRetrieveTransfer"] = &slave_servicesProcessor::process_ActiveRetrieveTransfer;
@@ -598,6 +850,26 @@ class slave_servicesMultiface : virtual public slave_servicesIf {
     ifaces_.push_back(iface);
   }
  public:
+  void InitPasvDataConnection(std::string& _return, const PasvParams& p, const int32_t startPort, const int16_t portLen) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->InitPasvDataConnection(_return, p, startPort, portLen);
+    }
+    ifaces_[i]->InitPasvDataConnection(_return, p, startPort, portLen);
+    return;
+  }
+
+  void OpenPasvDataConnection(std::string& _return, const PasvParams& p) {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->OpenPasvDataConnection(_return, p);
+    }
+    ifaces_[i]->OpenPasvDataConnection(_return, p);
+    return;
+  }
+
   void ActiveStoreTransfer(StorRetVal& _return, const ActiveParams& p, const int32_t iflags) {
     size_t sz = ifaces_.size();
     size_t i = 0;

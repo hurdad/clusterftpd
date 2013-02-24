@@ -22,6 +22,16 @@ class slave_servicesHandler : virtual public slave_servicesIf {
     // Your initialization goes here
   }
 
+  void InitPasvDataConnection(std::string& _return, const PasvParams& p, const int32_t startPort, const int16_t portLen) {
+    // Your implementation goes here
+    printf("InitPasvDataConnection\n");
+  }
+
+  void OpenPasvDataConnection(std::string& _return, const PasvParams& p) {
+    // Your implementation goes here
+    printf("OpenPasvDataConnection\n");
+  }
+
   void ActiveStoreTransfer(StorRetVal& _return, const ActiveParams& p, const int32_t iflags) {
     // Your implementation goes here
     printf("ActiveStoreTransfer\n");

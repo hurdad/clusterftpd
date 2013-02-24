@@ -10,8 +10,8 @@
 
 namespace slave {
 
-const char* ActiveParams::ascii_fingerprint = "BA8D7879AC362682D76912DE59F62E73";
-const uint8_t ActiveParams::binary_fingerprint[16] = {0xBA,0x8D,0x78,0x79,0xAC,0x36,0x26,0x82,0xD7,0x69,0x12,0xDE,0x59,0xF6,0x2E,0x73};
+const char* ActiveParams::ascii_fingerprint = "34B904D81E2BA7C35715651EE158756C";
+const uint8_t ActiveParams::binary_fingerprint[16] = {0x34,0xB9,0x04,0xD8,0x1E,0x2B,0xA7,0xC3,0x57,0x15,0x65,0x1E,0xE1,0x58,0x75,0x6C};
 
 uint32_t ActiveParams::read(::apache::thrift::protocol::TProtocol* iprot) {
 
@@ -89,6 +89,14 @@ uint32_t ActiveParams::read(::apache::thrift::protocol::TProtocol* iprot) {
           xfer += iprot->skip(ftype);
         }
         break;
+      case 8:
+        if (ftype == ::apache::thrift::protocol::T_I64) {
+          xfer += iprot->readI64(this->trans_id);
+          this->__isset.trans_id = true;
+        } else {
+          xfer += iprot->skip(ftype);
+        }
+        break;
       default:
         xfer += iprot->skip(ftype);
         break;
@@ -133,6 +141,10 @@ uint32_t ActiveParams::write(::apache::thrift::protocol::TProtocol* oprot) const
   xfer += oprot->writeI32(this->server_port);
   xfer += oprot->writeFieldEnd();
 
+  xfer += oprot->writeFieldBegin("trans_id", ::apache::thrift::protocol::T_I64, 8);
+  xfer += oprot->writeI64(this->trans_id);
+  xfer += oprot->writeFieldEnd();
+
   xfer += oprot->writeFieldStop();
   xfer += oprot->writeStructEnd();
   return xfer;
@@ -147,11 +159,12 @@ void swap(ActiveParams &a, ActiveParams &b) {
   swap(a.transfer_buffer_size, b.transfer_buffer_size);
   swap(a.server_ip, b.server_ip);
   swap(a.server_port, b.server_port);
+  swap(a.trans_id, b.trans_id);
   swap(a.__isset, b.__isset);
 }
 
-const char* PasvParams::ascii_fingerprint = "CA9E086295400ABB4921368555BAB8D5";
-const uint8_t PasvParams::binary_fingerprint[16] = {0xCA,0x9E,0x08,0x62,0x95,0x40,0x0A,0xBB,0x49,0x21,0x36,0x85,0x55,0xBA,0xB8,0xD5};
+const char* PasvParams::ascii_fingerprint = "03C5F3224DEBDE4AAB1009EA9007C8A8";
+const uint8_t PasvParams::binary_fingerprint[16] = {0x03,0xC5,0xF3,0x22,0x4D,0xEB,0xDE,0x4A,0xAB,0x10,0x09,0xEA,0x90,0x07,0xC8,0xA8};
 
 uint32_t PasvParams::read(::apache::thrift::protocol::TProtocol* iprot) {
 
@@ -213,6 +226,14 @@ uint32_t PasvParams::read(::apache::thrift::protocol::TProtocol* iprot) {
           xfer += iprot->skip(ftype);
         }
         break;
+      case 6:
+        if (ftype == ::apache::thrift::protocol::T_I64) {
+          xfer += iprot->readI64(this->trans_id);
+          this->__isset.trans_id = true;
+        } else {
+          xfer += iprot->skip(ftype);
+        }
+        break;
       default:
         xfer += iprot->skip(ftype);
         break;
@@ -249,6 +270,10 @@ uint32_t PasvParams::write(::apache::thrift::protocol::TProtocol* oprot) const {
   xfer += oprot->writeI32(this->transfer_buffer_size);
   xfer += oprot->writeFieldEnd();
 
+  xfer += oprot->writeFieldBegin("trans_id", ::apache::thrift::protocol::T_I64, 6);
+  xfer += oprot->writeI64(this->trans_id);
+  xfer += oprot->writeFieldEnd();
+
   xfer += oprot->writeFieldStop();
   xfer += oprot->writeStructEnd();
   return xfer;
@@ -261,6 +286,7 @@ void swap(PasvParams &a, PasvParams &b) {
   swap(a.fid, b.fid);
   swap(a.restart_at, b.restart_at);
   swap(a.transfer_buffer_size, b.transfer_buffer_size);
+  swap(a.trans_id, b.trans_id);
   swap(a.__isset, b.__isset);
 }
 

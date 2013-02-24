@@ -94,9 +94,9 @@ typedef long long __int64;
 #define INADDR_ANY	((unsigned long int) 0x00000000)
 #endif
 
-#include "hiredis/hiredis.h"
+#include <hiredis/hiredis.h>
 #include "redis_classes.hpp"
-#include "boost/lexical_cast.hpp"
+#include <boost/lexical_cast.hpp>
 #include "../gen-cpp/slave_services.h"
 #include "../gen-cpp/slave_services_types.h"
 #include <thrift/protocol/TBinaryProtocol.h>
@@ -403,6 +403,17 @@ public:
 	vector<slave_info> GetSlaves() {
 		return Slaves;
 	}
+
+	//Allocate new slave mapping
+	slave_info GetRandomSlave(){
+
+		vector<slave_info> my_slaves = GetSlaves();
+		unsigned short index = (unsigned short) (0
+				+ (rand() % my_slaves.size()));
+
+		return my_slaves[index];
+	}
+
 
 #ifdef CFTPSERVER_ENABLE_ZLIB
 	/**
@@ -1200,7 +1211,13 @@ private:
 	class CFtpServer *pFtpServer;
 
 	//Redis Connection
-	redisContext *c;
+	redisContext *pR;
+
+	//PRET Support
+	int nPRET_CMD;
+	long long llPRET_fid;
+	long long llPRET_trans_id;
+	slave_info SlaveInfo;
 
 	/**
 	 * Send a reply to the Client.
@@ -1263,7 +1280,7 @@ public:
 #endif
 	time_t mtime; // similar to st_mtime.
 	unsigned short mode; // similar to st_mode.
-	redisContext *c;
+	redisContext *pR;
 };
 
 #endif // #ifdef CFTPSERVER_H

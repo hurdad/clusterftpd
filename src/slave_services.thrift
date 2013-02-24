@@ -7,7 +7,8 @@ struct ActiveParams {
   4: i64 restart_at,
   5: i32 transfer_buffer_size,
   6: i64 server_ip,
-  7: i32 server_port
+  7: i32 server_port,
+  8: i64 trans_id
 }
 
 struct PasvParams {
@@ -15,7 +16,8 @@ struct PasvParams {
   2: i32 server_port
   3: i64 fid,
   4: i64 restart_at,
-  5: i32 transfer_buffer_size
+  5: i32 transfer_buffer_size,
+  6: i64 trans_id
 }
 
 struct StorRetVal{
@@ -24,6 +26,8 @@ struct StorRetVal{
 }
 
 service slave_services{
+	string InitPasvDataConnection(1:PasvParams p, 2:i32 startPort, 3:i16 portLen),
+	string OpenPasvDataConnection(1:PasvParams p),
 	StorRetVal ActiveStoreTransfer(1:ActiveParams p, 2:i32 iflags),
 	StorRetVal PasvStoreTransfer(1:PasvParams p, 2:i32 iflags),
 	string ActiveRetrieveTransfer(1:ActiveParams p),

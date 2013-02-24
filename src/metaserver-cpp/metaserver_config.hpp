@@ -154,6 +154,7 @@ void InitRedis() {
 	redisCommand(c, "SET gid_counter 1");
 	redisCommand(c, "HSET group:1 STAFF");
 	redisCommand(c, "SET fid_counter 0");
+	redisCommand(c, "SET transaction_counter 0");
 
 	//add admin user
 	redisCommand(c, "HSET username:admin password admin");

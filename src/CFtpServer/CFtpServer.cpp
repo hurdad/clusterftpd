@@ -178,7 +178,7 @@ bool CFtpServer::StartListening(unsigned long ulAddr,
 		struct sockaddr_in sin;
 		sin.sin_family = AF_INET;
 		sin.sin_addr.s_addr = ulAddr;
-		sin.sin_port = htons( usPort );
+		sin.sin_port = htons(usPort);
 #ifdef USE_BSDSOCKETS
 		sin.sin_len = sizeof( sin );
 #endif
@@ -499,7 +499,7 @@ CFtpServer::CUserEntry *CFtpServer::AddUser(const char *pszLogin,
 			return NULL;
 		SimplifyPath(pszSDEx);
 		struct stat st; // Verify that the StartPath exist, and is a directory
-		if (stat(pszSDEx, &st) != 0 || !S_ISDIR( st.st_mode )) {
+		if (stat(pszSDEx, &st) != 0 || !S_ISDIR(st.st_mode)) {
 			free(pszSDEx);
 			return NULL;
 		}
@@ -624,15 +624,15 @@ CFtpServer::CClientEntry *CFtpServer::AddClient(SOCKET Sock,
 			pClient->ClientLock.Initialize();
 			++uiNumberOfClient;
 
-			pClient->c = redisConnect(GetRedisConnectionIP().c_str(),
+			pClient->pR = redisConnect(GetRedisConnectionIP().c_str(),
 					GetRedisConnectionPort());
-			if (pClient->c != NULL && pClient->c->err) {
+			if (pClient->pR != NULL && pClient->pR->err) {
 				OnServerEventCb(REDIS_CONNECT_ERROR);
 				return NULL;
 			}
-			redisReply* reply = (redisReply*) redisCommand(pClient->c,
+			redisReply* reply = (redisReply*) redisCommand(pClient->pR,
 					"SELECT %u", GetRedisConnectionDB());
-			if (reply != NULL && pClient->c->err) {
+			if (reply != NULL && pClient->pR->err) {
 				OnServerEventCb(REDIS_CONNECT_ERROR);
 				return NULL;
 			}
@@ -721,8 +721,7 @@ CFtpServer::CUserEntry *CFtpServer::SearchUserFromLogin(const char *pszLogin) {
 		freeReplyObject(reply);
 
 		//query user
-		reply = (redisReply*) redisCommand(c, "HGETALL username:%s",
-				pszLogin);
+		reply = (redisReply*) redisCommand(c, "HGETALL username:%s", pszLogin);
 
 		//check if user exist
 		if (reply->elements > 0) {
@@ -790,6 +789,10 @@ CFtpServer::CClientEntry::CClientEntry() {
 	iZlibLevel = 6; // Default Zlib compression level.
 #endif
 
+	pR = NULL;
+	nPRET_CMD = -1;
+	llPRET_fid = -1;
+	llPRET_trans_id = -1;
 }
 
 CFtpServer::CClientEntry::~CClientEntry() {
@@ -813,7 +816,7 @@ CFtpServer::CClientEntry::~CClientEntry() {
 	}
 	ClientLock.Destroy();
 
-	redisFree(c);
+	redisFree(pR);
 }
 
 bool CFtpServer::CClientEntry::InitDelete() {
@@ -1135,11 +1138,46 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 			continue;
 
 		} else if (nCmd == CMD_PRET) {
+			// http://www.drftpd.org/index.php/PRET_Specifications
+			// PRET RETR <file>
+			// PRET APPE <file>
+			// PRET STOR <file>
+			if (pszCmdArg) {
+				char cmd[4];
+				char file[MAX_PATH + 1];
+				sscanf(pszCmdArg, "%s %s", cmd, file);
+				string scmd(cmd);
 
-			//		char cmd[30];
-			//		char file[30];
-			//		sscanf(pszCmdArg, "%s %s", cmd, file);
-			pClient->SendReply("200 Command OK");
+				pClient->nPRET_CMD = CMD_NONE;
+				if (scmd == "RETR") {
+					pClient->nPRET_CMD = CMD_RETR;
+				} else if (scmd == "APPE") {
+					pClient->nPRET_CMD = CMD_APPE;
+				} else if (scmd == "STOR") {
+					pClient->nPRET_CMD = CMD_STOR;
+				}
+
+				//check fid exits
+				if (pClient->nPRET_CMD == CMD_RETR
+						|| pClient->nPRET_CMD == CMD_APPE) {
+					pszPath = pClient->BuildPath(file);
+					if (pszPath
+							&& redis_vfs::stat(pClient->pR, pszPath, &st)
+									== 0&& S_ISREG(st.st_mode)) {
+						//lookup
+						pClient->llPRET_fid = redis_vfs::lookup_fid(pClient->pR,
+								pszPath);
+						if (pClient->llPRET_fid >= 0)
+							pClient->SendReply("200 Command OK");
+						else
+							pClient->SendReply(
+									"550 No such file or directory.");
+					} else
+						pClient->SendReply("550 No such file or directory.");
+				} else
+					pClient->SendReply("200 Command OK");
+			} else
+				pClient->SendReply("501 Invalid number of arguments.");
 
 			continue;
 
@@ -1147,67 +1185,140 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 
 			if (pClient->eStatus == WAITING) {
 
-				if (pClient->eDataConnection != NONE)
-					pClient->ResetDataConnection();
+				//Check for PRET
+				if (pClient->nPRET_CMD == CMD_NONE) {
 
-				pClient->DataSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-				struct sockaddr_in sin;
-				sin.sin_family = AF_INET;
-				sin.sin_addr.s_addr = pClient->ulServerIP;
+					if (pClient->eDataConnection != NONE)
+						pClient->ResetDataConnection();
+
+					pClient->DataSock = socket(AF_INET, SOCK_STREAM,
+							IPPROTO_TCP);
+					struct sockaddr_in sin;
+					sin.sin_family = AF_INET;
+					sin.sin_addr.s_addr = pClient->ulServerIP;
 #ifdef USE_BSDSOCKETS
-				sin.sin_len = sizeof( sin );
+					sin.sin_len = sizeof( sin );
 #endif
 #ifndef WIN32
-				int on = 1;
+					int on = 1;
 #endif
+					if (pClient->DataSock != INVALID_SOCKET
+#ifndef WIN32
+							&& setsockopt(pClient->DataSock, SOL_SOCKET,
+									SO_REUSEADDR, (char *) &on, sizeof(on))
+									!= SOCKET_ERROR
+#endif
+					) {
+						pClient->usDataPort = 0;
+						unsigned short int usLen;
+						unsigned short int usStart;
+						pFtpServer->GetDataPortRange(&usStart, &usLen);
+						unsigned short int usFirstTry =
+								(unsigned short) (usStart + (rand() % usLen));
+						unsigned short usTriedPort = usFirstTry;
+						for (;;) {
+							sin.sin_port = htons(usTriedPort);
+							if (!bind(pClient->DataSock,
+									(struct sockaddr *) &sin,
+									sizeof(struct sockaddr_in))) {
+								pClient->usDataPort = usTriedPort;
+								break;
+							}
+							--usTriedPort;
+							if (usTriedPort < usFirstTry)
+								usTriedPort = (unsigned short int) (usStart
+										+ usLen);
+							if (usTriedPort == usFirstTry) {
+								break;
+							}
+						}
+						if (!pClient->usDataPort) {
+							pClient->SendReply(
+									"451 Internal error - No more data port available.");
+							continue;
+						}
+						if (listen(pClient->DataSock, 1) == SOCKET_ERROR)
+							continue;
 
-				if (pClient->DataSock != INVALID_SOCKET
-#ifndef WIN32
-						&& setsockopt(pClient->DataSock, SOL_SOCKET,
-								SO_REUSEADDR, (char *) &on, sizeof(on))
-								!= SOCKET_ERROR
-#endif
-				) {
-					pClient->usDataPort = 0;
+						unsigned long ulIp = ntohl(pClient->ulServerIP);
+
+						pClient->SendReply2(
+								"227 Entering Passive Mode (%lu,%lu,%lu,%lu,%u,%u)",
+								(ulIp >> 24) & 255, (ulIp >> 16) & 255,
+								(ulIp >> 8) & 255, ulIp & 255,
+								pClient->usDataPort / 256,
+								pClient->usDataPort % 256);
+
+						pClient->eDataConnection = PASV;
+					}
+				} else {
+
+					//init
+					slave_info slave;
+
+					//lookup slave from fid
+					if (pClient->nPRET_CMD == CMD_RETR
+							|| pClient->nPRET_CMD == CMD_APPE) {
+						slave = redis_vfs::lookup_slave_info(pClient->pR,
+								pClient->llPRET_fid);
+					}
+
+					//allocate new slave
+					if (pClient->nPRET_CMD == CMD_STOR) {
+						//pick slave
+						if (pFtpServer->Slaves.size() > 0) {
+							slave = pFtpServer->GetRandomSlave();
+						} else {
+							pClient->SendReply("550 Can't store file.");
+						}
+					}
+
+					//save slave
+					pClient->SlaveInfo = slave;
+
+					//get new transaction id
+					pClient->llPRET_trans_id =
+							redis_transaction::get_new_transaction_id(
+									pClient->pR);
+
+					//build PASV Params
+					slave::PasvParams p;
+					p.server_ip = inet_addr(slave.host.c_str());
+					p.trans_id = pClient->llPRET_trans_id;
+
 					unsigned short int usLen;
 					unsigned short int usStart;
 					pFtpServer->GetDataPortRange(&usStart, &usLen);
-					unsigned short int usFirstTry = (unsigned short) (usStart
-							+ (rand() % usLen));
-					unsigned short usTriedPort = usFirstTry;
-					for (;;) {
-						sin.sin_port = htons( usTriedPort );
-						if (!bind(pClient->DataSock, (struct sockaddr *) &sin,
-								sizeof(struct sockaddr_in))) {
-							pClient->usDataPort = usTriedPort;
-							break;
-						}
-						--usTriedPort;
-						if (usTriedPort < usFirstTry)
-							usTriedPort =
-									(unsigned short int) (usStart + usLen);
-						if (usTriedPort == usFirstTry) {
-							break;
-						}
-					}
-					if (!pClient->usDataPort) {
-						pClient->SendReply(
-								"451 Internal error - No more data port available.");
-						continue;
-					}
-					if (listen(pClient->DataSock, 1) == SOCKET_ERROR)
-						continue;
 
-					unsigned long ulIp = ntohl( pClient->ulServerIP );
-					pClient->SendReply2(
-							"227 Entering Passive Mode (%lu,%lu,%lu,%lu,%u,%u)",
-							(ulIp >> 24) & 255, (ulIp >> 16) & 255,
-							(ulIp >> 8) & 255, ulIp & 255,
-							pClient->usDataPort / 256,
-							pClient->usDataPort % 256);
+					//send InitPasvDataConnection RPC to slave
+					//init rpc
+					boost::shared_ptr<TTransport> socket(
+							new TSocket(slave.host, slave.port));
+					boost::shared_ptr<TTransport> transport(
+							new TBufferedTransport(socket));
+					boost::shared_ptr<TProtocol> protocol(
+							new TBinaryProtocol(transport));
+					slave::slave_servicesClient client(protocol);
+					string retval;
+
+					//call RPC
+					try {
+						transport->open();
+						client.InitPasvDataConnection(retval, p, usStart,
+								usLen);
+						transport->close();
+					} catch (TException &tx) {
+						pFtpServer->OnServerEventCb(THRIFT_ERROR);
+						pClient->SendReply("425 Can't open data connection.");
+						continue;
+					}
+
+					//update client
+					pClient->SendReply(retval.c_str());
 
 					pClient->eDataConnection = PASV;
 				}
+
 			} else
 				pClient->SendReply("425 You're already connected.");
 			continue;
@@ -1255,7 +1366,7 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 			}
 
 			pszPath = pClient->BuildPath(pszArg);
-			if (pszPath && redis_vfs::stat(pClient->c, pszPath, &st) == 0) {
+			if (pszPath && redis_vfs::stat(pClient->pR, pszPath, &st) == 0) {
 
 				memcpy(&pClient->CurrentTransfer.szPath, pszPath,
 						strlen(pszPath));
@@ -1291,7 +1402,8 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 					pClient->ResetDataConnection();
 					pFtpServer->OnServerEventCb(THREAD_ERROR);
 				}
-			}
+			} else
+				pClient->SendReply("550 No such file or directory.");
 			continue;
 
 		} else if (nCmd == CMD_CWD || nCmd == CMD_XCWD) {
@@ -1300,8 +1412,8 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 				char *pszVirtualPath = NULL;
 				pszPath = pClient->BuildPath(pszCmdArg, &pszVirtualPath);
 				if (pszPath
-						&& redis_vfs::stat(pClient->c, pszPath, &st)
-								== 0&& S_ISDIR( st.st_mode )) {
+						&& redis_vfs::stat(pClient->pR, pszPath, &st)
+								== 0&& S_ISDIR(st.st_mode)) {
 					strcpy(pClient->szWorkingDir, pszVirtualPath);
 					delete[] pszVirtualPath;
 					pClient->SendReply("250 CWD command successful.");
@@ -1318,7 +1430,7 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 			if (pszCmdArg) {
 				pszPath = pClient->BuildPath(pszCmdArg);
 				struct tm *t;
-				if (pszPath && !redis_vfs::stat(pClient->c, pszPath, &st)
+				if (pszPath && !redis_vfs::stat(pClient->pR, pszPath, &st)
 						&& (t = gmtime((time_t *) &(st.st_mtime)))) {
 					pClient->SendReply2("213 %04d%02d%02d%02d%02d%02d",
 							t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
@@ -1375,11 +1487,45 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 
 				pszPath = pClient->BuildPath(pszCmdArg);
 				if (pszPath
-						&& redis_vfs::stat(pClient->c, pszPath, &st)
-								== 0&& S_ISREG( st.st_mode )) {
+						&& redis_vfs::stat(pClient->pR, pszPath, &st)
+								== 0&& S_ISREG(st.st_mode)) {
 
-				//	if (pClient->OpenDataConnection(nCmd) == false)
-				//		continue;
+					//Open PRET PASV Data Connection
+					if (pClient->eDataConnection == PASV) {
+
+						//build PASV Params
+						slave::PasvParams p;
+						p.trans_id = pClient->llPRET_trans_id;
+
+						slave_info slave = pClient->SlaveInfo;
+
+						//send OpenPasvDataConnection RPC to slave
+						//init rpc
+						boost::shared_ptr<TTransport> socket(
+								new TSocket(slave.host, slave.port));
+						boost::shared_ptr<TTransport> transport(
+								new TBufferedTransport(socket));
+						boost::shared_ptr<TProtocol> protocol(
+								new TBinaryProtocol(transport));
+						slave::slave_servicesClient client(protocol);
+						string retval;
+
+						//call RPC
+						try {
+							transport->open();
+							client.OpenPasvDataConnection(retval, p);
+							transport->close();
+						} catch (TException &tx) {
+							pFtpServer->OnServerEventCb(THRIFT_ERROR);
+							pClient->SendReply(
+									"425 Can't open data connection.");
+							continue;
+						}
+
+						//update client
+						pClient->SendReply(retval.c_str());
+
+					}
 
 					pClient->eStatus = DOWNLOADING;
 					pClient->CurrentTransfer.pClient = pClient;
@@ -1424,7 +1570,7 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 					sprintf(szName, "file.%i", rand() % 9999999);
 					pszPath = pClient->BuildPath(szName);
 					if (!pszPath
-							|| !redis_vfs::stat(pClient->c, pszPath, &st)) {
+							|| !redis_vfs::stat(pClient->pR, pszPath, &st)) {
 						delete[] pszPath;
 						pszPath = NULL;
 					} else
@@ -1434,13 +1580,47 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 
 				if (pszPath) {
 
-					//	if (!pClient->OpenDataConnection(nCmd))
-					//		continue;
+					//Open PRET PASV Data Connection
+					if (pClient->eDataConnection == PASV) {
+
+						//build PASV Params
+						slave::PasvParams p;
+						p.trans_id = pClient->llPRET_trans_id;
+
+						slave_info slave = pClient->SlaveInfo;
+
+						//send OpenPasvDataConnection RPC to slave
+						//init rpc
+						boost::shared_ptr<TTransport> socket(
+								new TSocket(slave.host, slave.port));
+						boost::shared_ptr<TTransport> transport(
+								new TBufferedTransport(socket));
+						boost::shared_ptr<TProtocol> protocol(
+								new TBinaryProtocol(transport));
+						slave::slave_servicesClient client(protocol);
+						string retval;
+
+						//call RPC
+						try {
+							transport->open();
+							client.OpenPasvDataConnection(retval, p);
+							transport->close();
+						} catch (TException &tx) {
+							pFtpServer->OnServerEventCb(THRIFT_ERROR);
+							pClient->SendReply(
+									"425 Can't open data connection.");
+							continue;
+						}
+
+						//update client
+						pClient->SendReply(retval.c_str());
+
+					}
 
 					pClient->eStatus = UPLOADING;
 					pClient->CurrentTransfer.pClient = pClient;
 					if (nCmd == CMD_APPE) {
-						if (redis_vfs::stat(pClient->c, pszPath, &st) == 0) {
+						if (redis_vfs::stat(pClient->pR, pszPath, &st) == 0) {
 							pClient->CurrentTransfer.RestartAt = st.st_size;
 						} else
 							pClient->CurrentTransfer.RestartAt = 0;
@@ -1470,8 +1650,8 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 			if (pszCmdArg) {
 				pszPath = pClient->BuildPath(pszCmdArg);
 				if (pszPath
-						&& redis_vfs::stat(pClient->c, pszPath, &st)
-								== 0&& S_ISREG( st.st_mode )) {
+						&& redis_vfs::stat(pClient->pR, pszPath, &st)
+								== 0&& S_ISREG(st.st_mode)) {
 					pClient->SendReply2(
 #ifdef __USE_FILE_OFFSET64
 #ifdef WIN32
@@ -1498,9 +1678,9 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 			if (pszCmdArg) {
 				pszPath = pClient->BuildPath(pszCmdArg);
 				if (pszPath
-						&& redis_vfs::stat(pClient->c, pszPath, &st)
-								== 0&& S_ISREG( st.st_mode )) {
-					if (redis_vfs::remove(pClient->c, pszPath) != -1) {
+						&& redis_vfs::stat(pClient->pR, pszPath, &st)
+								== 0&& S_ISREG(st.st_mode)) {
+					if (redis_vfs::remove(pClient->pR, pszPath) != -1) {
 						pClient->SendReply("250 DELE command successful.");
 					} else
 						pClient->SendReply(
@@ -1520,7 +1700,8 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 			}
 			if (pszCmdArg) {
 				pszPath = pClient->BuildPath(pszCmdArg);
-				if (pszPath && redis_vfs::stat(pClient->c, pszPath, &st) == 0) {
+				if (pszPath
+						&& redis_vfs::stat(pClient->pR, pszPath, &st) == 0) {
 					strcpy(pClient->szRenameFromPath, pszPath);
 					pClient->SendReply(
 							"350 File or directory exists, ready for destination name.");
@@ -1536,7 +1717,7 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 				if (pClient->szRenameFromPath) {
 					pszPath = pClient->BuildPath(pszCmdArg);
 					if (pszPath
-							&& redis_vfs::rename(pClient->c,
+							&& redis_vfs::rename(pClient->pR,
 									pClient->szRenameFromPath, pszPath) == 0) {
 						pClient->SendReply("250 Rename successful.");
 					} else
@@ -1557,11 +1738,12 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 			}
 			if (pszCmdArg) {
 				pszPath = pClient->BuildPath(pszCmdArg);
-				if (pszPath && redis_vfs::stat(pClient->c, pszPath, &st) != 0) {
+				if (pszPath
+						&& redis_vfs::stat(pClient->pR, pszPath, &st) != 0) {
 #ifdef WIN32
 					if( _mkdir( pszPath ) == -1 ) {
 #else
-					if (redis_vfs::mkdir(pClient->c, pszPath, 0777,
+					if (redis_vfs::mkdir(pClient->pR, pszPath, 0777,
 							pClient->pUser->uid, pClient->pUser->gid) < 0) {
 #endif
 						pClient->SendReply("550 MKD Error Creating DIR.");
@@ -1581,11 +1763,12 @@ void *CFtpServer::CClientEntry::Shell(void *pvParam)
 			}
 			if (pszCmdArg) {
 				pszPath = pClient->BuildPath(pszCmdArg);
-				if (pszPath && redis_vfs::stat(pClient->c, pszPath, &st) == 0) {
+				if (pszPath
+						&& redis_vfs::stat(pClient->pR, pszPath, &st) == 0) {
 #ifdef WIN32
 					if ( _rmdir( pszPath ) == -1 ) {
 #else
-					if (redis_vfs::rmdir(pClient->c, pszPath) < 0) {
+					if (redis_vfs::rmdir(pClient->pR, pszPath) < 0) {
 #endif
 						pClient->SendReply(
 								"450 Internal error deleting the directory.");
@@ -2137,7 +2320,7 @@ bool CFtpServer::CClientEntry::OpenDataConnection(int nCmd) {
 
 				struct sockaddr_in ConnectSin;
 				ConnectSin.sin_family = AF_INET;
-				ConnectSin.sin_port = htons( usDataPort );
+				ConnectSin.sin_port = htons(usDataPort);
 				ConnectSin.sin_addr.s_addr = ulDataIp;
 #ifdef USE_BSDSOCKETS
 				ConnectSin.sin_len = sizeof( ConnectSin );
@@ -2263,25 +2446,25 @@ void* CFtpServer::CClientEntry::StoreThread(void *pvParam)
 	} else
 		iflags |= O_TRUNC; //w|b
 
-	//get fid
-	long long fid = redis_vfs::get_new_fid(pClient->c);
+	//init vars
+	slave::StorRetVal retval;
+	slave_info slave;
 
-	if (pFtpServer->Slaves.size() > 0) {
-		//get slave for file
-		unsigned short index = (unsigned short) (0
-				+ (rand() % pFtpServer->Slaves.size()));
+	//get new fid
+	long long fid = redis_vfs::get_new_fid(pClient->pR);
 
-		slave_info slave = pFtpServer->Slaves[index];
+	//Active Transfer
+	if (pClient->eDataConnection == PORT) {
 
-		//send rpc
-		boost::shared_ptr<TTransport> socket(
-				new TSocket(slave.host, slave.port));
-		boost::shared_ptr<TTransport> transport(new TBufferedTransport(socket));
-		boost::shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
-		slave::slave_servicesClient client(protocol);
-		slave::StorRetVal retval;
+		//check for slave config
+		if (pFtpServer->Slaves.size() > 0) {
 
-		if (pClient->eDataConnection == PORT) {
+			//get slave
+			slave = pFtpServer->GetRandomSlave();
+
+			//get new transaction id
+			long long trans_id = redis_transaction::get_new_transaction_id(
+					pClient->pR);
 
 			//build Active Params
 			slave::ActiveParams p;
@@ -2290,13 +2473,23 @@ void* CFtpServer::CClientEntry::StoreThread(void *pvParam)
 			p.fid = fid;
 			p.restart_at = pClient->CurrentTransfer.RestartAt;
 			p.transfer_buffer_size = pFtpServer->GetTransferBufferSize();
-			p.server_ip = pClient->ulServerIP;
+			p.server_ip = inet_addr(slave.host.c_str());
 			unsigned short int usLen, usStart;
 			pFtpServer->GetDataPortRange(&usStart, &usLen);
 			p.server_port = (unsigned short) (usStart + (rand() % usLen));
+			p.trans_id = trans_id;
 
 			//update client
 			pClient->SendReply("150 Opening data channel.");
+
+			//init rpc
+			boost::shared_ptr<TTransport> socket(
+					new TSocket(slave.host, slave.port));
+			boost::shared_ptr<TTransport> transport(
+					new TBufferedTransport(socket));
+			boost::shared_ptr<TProtocol> protocol(
+					new TBinaryProtocol(transport));
+			slave::slave_servicesClient client(protocol);
 
 			//call RPC
 			try {
@@ -2308,26 +2501,65 @@ void* CFtpServer::CClientEntry::StoreThread(void *pvParam)
 				pClient->SendReply("550 Can't store file.");
 				goto endofstore;
 			}
+
+			//check return
+			if (retval.size >= 0)
+				redis_vfs::save_new_file(pClient->pR,
+						pClient->CurrentTransfer.szPath, 0777, retval.size,
+						pClient->pUser->uid, pClient->pUser->gid, fid, slave);
+
+		} else
+			pClient->SendReply("550 Can't store file.");
+	}
+	//Pasv Transfer
+	if (pClient->eDataConnection == PASV) {
+
+		//check for correct PRET CMD
+		if (pClient->nPRET_CMD != CMD_STOR && pClient->nPRET_CMD != CMD_APPE) {
+			pClient->SendReply("503 Bad sequence of commands STOR");
+			goto endofstore;
 		}
 
-		if (pClient->eDataConnection == PASV) {
+		//get slave
+		slave = pClient->SlaveInfo;
 
-			//TODO
+		//build PASV Params
+		slave::PasvParams p;
+		p.fid = fid;
+		p.restart_at = pClient->CurrentTransfer.RestartAt;
+		p.transfer_buffer_size = pFtpServer->GetTransferBufferSize();
+		p.trans_id = pClient->llPRET_trans_id;
+
+		//init rpc
+		boost::shared_ptr<TTransport> socket(
+				new TSocket(slave.host, slave.port));
+		boost::shared_ptr<TTransport> transport(new TBufferedTransport(socket));
+		boost::shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
+		slave::slave_servicesClient client(protocol);
+
+		//call RPC
+		try {
+			transport->open();
+			client.PasvStoreTransfer(retval, p, iflags);
+			transport->close();
+		} catch (TException &tx) {
+			pFtpServer->OnServerEventCb(THRIFT_ERROR);
+			pClient->SendReply("550 Can't store file.");
+			goto endofstore;
 		}
 
 		//check return
 		if (retval.size >= 0)
-			redis_vfs::save_new_file(pClient->c,
+			redis_vfs::save_new_file(pClient->pR,
 					pClient->CurrentTransfer.szPath, 0777, retval.size,
 					pClient->pUser->uid, pClient->pUser->gid, fid, slave);
 
-		pClient->SendReply(retval.msg.c_str());
+	}
 
-	} else
-		pClient->SendReply("550 Can't store file.");
+	//update client
+	pClient->SendReply(retval.msg.c_str());
 
-	endofstore:
-	pFtpServer->ClientListLock.Enter();
+	endofstore: pFtpServer->ClientListLock.Enter();
 	{
 		pClient->ResetDataConnection(false); // do not wait sync on self
 		if (pClient->bIsCtrlCanalOpen == true) {
@@ -2355,21 +2587,35 @@ void* CFtpServer::CClientEntry::RetrieveThread(void *pvParam)
 	CFtpServer::CClientEntry *pClient = (CFtpServer::CClientEntry*) pvParam;
 	CFtpServer *pFtpServer = pClient->pFtpServer;
 	struct DataTransfer_t *pTransfer = &pClient->CurrentTransfer;
-	long long fid = redis_vfs::lookup_fid(pClient->c, pTransfer->szPath);
-	if (pFtpServer->Slaves.size() > 0 && fid >= 0) {
 
-		slave_info slave = redis_vfs::lookup_slave_info(pClient->c,
-				pTransfer->szPath);
+	long long fid = redis_vfs::lookup_fid(pClient->pR, pTransfer->szPath);
 
-		//send rpc
-		boost::shared_ptr<TTransport> socket(
-				new TSocket(slave.host, slave.port));
-		boost::shared_ptr<TTransport> transport(new TBufferedTransport(socket));
-		boost::shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
-		slave::slave_servicesClient client(protocol);
-		string retval;
+	//init vars
+	string retval;
+	slave_info slave;
 
-		if (pClient->eDataConnection == PORT) {
+	//Active Transfer
+	if (pClient->eDataConnection == PORT) {
+
+		//check for slave config
+		if (pFtpServer->Slaves.size() > 0 && fid >= 0) {
+
+			//lookup slave
+			slave = redis_vfs::lookup_slave_info(pClient->pR,
+					pTransfer->szPath);
+
+			//get new transaction id
+			long long trans_id = redis_transaction::get_new_transaction_id(
+					pClient->pR);
+
+			//send rpc
+			boost::shared_ptr<TTransport> socket(
+					new TSocket(slave.host, slave.port));
+			boost::shared_ptr<TTransport> transport(
+					new TBufferedTransport(socket));
+			boost::shared_ptr<TProtocol> protocol(
+					new TBinaryProtocol(transport));
+			slave::slave_servicesClient client(protocol);
 
 			//build Active Params
 			slave::ActiveParams p;
@@ -2378,10 +2624,11 @@ void* CFtpServer::CClientEntry::RetrieveThread(void *pvParam)
 			p.fid = fid;
 			p.restart_at = pClient->CurrentTransfer.RestartAt;
 			p.transfer_buffer_size = pFtpServer->GetTransferBufferSize();
-			p.server_ip = pClient->ulServerIP;
+			p.server_ip = inet_addr(slave.host.c_str());
 			unsigned short int usLen, usStart;
 			pFtpServer->GetDataPortRange(&usStart, &usLen);
 			p.server_port = (unsigned short) (usStart + (rand() % usLen));
+			p.trans_id = trans_id;
 
 			//update client
 			pClient->SendReply("150 Opening data channel.");
@@ -2397,19 +2644,58 @@ void* CFtpServer::CClientEntry::RetrieveThread(void *pvParam)
 				goto endofretrieve;
 			}
 		}
+	}
 
-		if (pClient->eDataConnection == PASV) {
+	//Pasv Transfer
+	if (pClient->eDataConnection == PASV) {
 
-			//TODO
+		//check for correct PRET CMD
+		if (pClient->nPRET_CMD != CMD_RETR) {
+			pClient->SendReply("503 Bad sequence of commands");
+			goto endofretrieve;
 		}
 
-		pClient->SendReply(retval.c_str());
+		//verify PRET fid matches RETR fid
+		if (pClient->llPRET_fid != fid) {
+			pClient->SendReply("503 Bad sequence of commands");
+			goto endofretrieve;
+		}
 
-	} else
-		pClient->SendReply("550 Can't retrieve File.");
+		//get slave
+		slave = pClient->SlaveInfo;
 
-	endofretrieve:
-	pFtpServer->ClientListLock.Enter();
+		//build PASV Params
+		slave::PasvParams p;
+		p.server_ip = inet_addr(slave.host.c_str());
+		p.server_port = pClient->usDataPort;
+		p.fid = fid;
+		p.restart_at = pClient->CurrentTransfer.RestartAt;
+		p.transfer_buffer_size = pFtpServer->GetTransferBufferSize();
+		p.trans_id = pClient->llPRET_trans_id;
+
+		//init rpc
+		boost::shared_ptr<TTransport> socket(
+				new TSocket(slave.host, slave.port));
+		boost::shared_ptr<TTransport> transport(new TBufferedTransport(socket));
+		boost::shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
+		slave::slave_servicesClient client(protocol);
+
+		//call RPC
+		try {
+			transport->open();
+			client.PasvRetrieveTransfer(retval, p);
+			transport->close();
+		} catch (TException &tx) {
+			pFtpServer->OnServerEventCb(THRIFT_ERROR);
+			pClient->SendReply("550 Can't retrieve File.");
+			goto endofretrieve;
+		}
+	}
+
+	//update client
+	pClient->SendReply(retval.c_str());
+
+	endofretrieve: pFtpServer->ClientListLock.Enter();
 	{
 		pClient->ResetDataConnection(false); // do not wait sync on self
 		if (pClient->bIsCtrlCanalOpen == true) {
@@ -2445,7 +2731,7 @@ int CFtpServer::CClientEntry::GetFileListLine(char* psLine, unsigned short mode,
 	static const char *pszMonth[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
 			"Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
-	//TODO set user = uid =>alex and group = gid=>STAFF
+//TODO set user = uid =>alex and group = gid=>STAFF
 
 	static const char szListFile[] = "%c%c%c%c%c%c%c%c%c%c 1 user group %14"
 #ifdef __USE_FILE_OFFSET64
@@ -2465,12 +2751,12 @@ int CFtpServer::CClientEntry::GetFileListLine(char* psLine, unsigned short mode,
 	} else
 		sprintf(szYearOrHour, "%02d:%02d", t->tm_hour, t->tm_min);
 
-	int iLineLen = sprintf(psLine, szListFile, (S_ISDIR( mode )) ? 'd' : '-',
+	int iLineLen = sprintf(psLine, szListFile, (S_ISDIR(mode)) ? 'd' : '-',
 			(mode & S_IREAD) == S_IREAD ? 'r' : '-',
 			(mode & S_IWRITE) == S_IWRITE ? 'w' : '-',
 			(mode & S_IEXEC) == S_IEXEC ? 'x' : '-', '-', '-', '-', '-', '-',
 			'-', size, pszMonth[t->tm_mon], t->tm_mday, szYearOrHour, pszName,
-			(opt_F && S_ISDIR( mode ) ? "/" : ""));
+			(opt_F && S_ISDIR(mode) ? "/" : ""));
 
 	return iLineLen;
 }
@@ -2545,7 +2831,7 @@ void* CFtpServer::CClientEntry::ListThread(void *pvParam)
 
 	if (psFileLine) {
 
-		if (pTransfer->opt_d || !S_ISDIR( st->st_mode )) {
+		if (pTransfer->opt_d || !S_ISDIR(st->st_mode)) {
 
 			char *pszName = strrchr(pTransfer->szPath, '/');
 			iFileLineLen = pClient->GetFileListLine(psFileLine, st->st_mode,
@@ -2560,7 +2846,7 @@ void* CFtpServer::CClientEntry::ListThread(void *pvParam)
 		} else {
 
 			CEnumFileInfo *fi = new CFtpServer::CEnumFileInfo;
-			fi->c = pClient->c;
+			fi->pR = pClient->pR;
 			unsigned int uiBufferSize = pFtpServer->GetTransferBufferSize();
 			char *pBuffer = new char[uiBufferSize];
 			unsigned int nBufferPos = 0;
@@ -2669,7 +2955,7 @@ bool CFtpServer::CEnumFileInfo::FindFirst(const char *pszPath) {
 		sprintf(pszTempPath, "%s%s", pszPath,
 				(pszPath[iPathLen - 1] != '/') ? "/" : "");
 
-		if ((vdp = redis_vfs::opendir(c, pszTempPath)) != NULL) {
+		if ((vdp = redis_vfs::opendir(pR, pszTempPath)) != NULL) {
 			if (FindNext())
 				return true;
 		}
@@ -2723,7 +3009,7 @@ bool CFtpServer::CEnumFileInfo::FindNext() {
 		pszName = szFullPath + strlen(szDirPath)
 				+ ((szDirPath[iDirPathLen - 1] != '/') ? 1 : 0);
 
-		if (redis_vfs::stat(c, szFullPath, &st) == 0) {
+		if (redis_vfs::stat(pR, szFullPath, &st) == 0) {
 			size = st.st_size;
 			mode = st.st_mode;
 			mtime = st.st_mtime;

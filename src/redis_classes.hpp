@@ -69,7 +69,7 @@ public:
 		redisReply* reply = (redisReply*) redisCommand(c, "HGETALL dirent:%u",
 				fid);
 
-		if ( reply->elements > 0) {
+		if (reply->elements > 0) {
 			return new map<string, long long>(
 					redis_util::to_map<long long>(reply));
 		}
@@ -288,8 +288,9 @@ public:
 
 	long long static get_new_fid(redisContext *c) {
 		redisReply* reply = (redisReply*) redisCommand(c, "INCR fid_counter");
+		long long ret = reply->integer;
 		freeReplyObject(reply);
-		return reply->integer;
+		return ret;
 	}
 
 	int static save_new_file(redisContext *c, const char *path, mode_t mode,
@@ -337,6 +338,10 @@ public:
 		//assume fid exist
 		long long fid = lookup_fid(c, path);
 
+		return lookup_slave_info(c, fid);
+	}
+
+	static slave_info lookup_slave_info(redisContext *c, long long fid) {
 		//init return var
 		slave_info info;
 
@@ -392,7 +397,17 @@ public:
 
 		return fid;
 	}
+};
 
+class redis_transaction {
+public:
+	long long static get_new_transaction_id(redisContext *c) {
+		redisReply* reply = (redisReply*) redisCommand(c,
+				"INCR transaction_counter");
+		long long ret = reply->integer;
+		freeReplyObject(reply);
+		return ret;
+	}
 };
 
 #endif /* REDIS_VFS_H_ */
