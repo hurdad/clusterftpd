@@ -72,7 +72,8 @@ public:
 		if (reply->elements > 0) {
 			return new map<string, long long>(
 					redis_util::to_map<long long>(reply));
-		}
+		} else
+			freeReplyObject(reply);
 
 		return NULL;
 
@@ -121,7 +122,9 @@ public:
 			buf->st_mtime = atoi(stat["st_mtime"].c_str());
 
 			return 0;
-		}
+		} else
+			freeReplyObject(reply);
+
 		return -1;
 	}
 
@@ -144,24 +147,39 @@ public:
 		string entry = spath.substr(found + 1);
 
 		//redis update
-		redisCommand(c, "MULTI");
+		redisReply* reply = (redisReply*) redisCommand(c, "MULTI");
+		freeReplyObject(reply);
 
 		//stat entry
-		redisCommand(c, "HSET stat:%u st_size %u", new_fid, 4096);
-		redisCommand(c, "HSET stat:%u st_mode %u", new_fid, mode);
-		redisCommand(c, "HSET stat:%u st_uid %u", new_fid, uid);
-		redisCommand(c, "HSET stat:%u st_gid %u", new_fid, gid);
-		redisCommand(c, "HSET stat:%u st_mtime %u", new_fid, time(NULL));
+		reply = (redisReply*) redisCommand(c, "HSET stat:%u st_size %u",
+				new_fid, 4096);
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "HSET stat:%u st_mode %u",
+				new_fid, mode);
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "HSET stat:%u st_uid %u", new_fid,
+				uid);
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "HSET stat:%u st_gid %u", new_fid,
+				gid);
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "HSET stat:%u st_mtime %u",
+				new_fid, time(NULL));
+		freeReplyObject(reply);
 
 		//parent dirent
-		redisCommand(c, "HSET dirent:%u %s %u", parent_fid, entry.c_str(),
-				new_fid);
+		reply = (redisReply*) redisCommand(c, "HSET dirent:%u %s %u",
+				parent_fid, entry.c_str(), new_fid);
+		freeReplyObject(reply);
 
 		//new dirents
-		redisCommand(c, "HSET dirent:%u .foo -1", new_fid);
+		reply = (redisReply*) redisCommand(c, "HSET dirent:%u .placeholder -1",
+				new_fid);
+		freeReplyObject(reply);
 
 		//commit
-		redisCommand(c, "EXEC");
+		reply = (redisReply*) redisCommand(c, "EXEC");
+		freeReplyObject(reply);
 
 		//check for errors
 		if (c != NULL && c->err) {
@@ -196,11 +214,17 @@ public:
 			string entry = spath.substr(found + 1);
 
 			//redis update
-			redisCommand(c, "MULTI");
-			redisCommand(c, "HDEL dirent:%u %s", parent_fid, entry.c_str());
-			redisCommand(c, "DEL stat:%u", fid);
-			redisCommand(c, "DEL diren:%u ", fid);
-			redisCommand(c, "EXEC");
+			reply = (redisReply*) redisCommand(c, "MULTI");
+			freeReplyObject(reply);
+			reply = (redisReply*) redisCommand(c, "HDEL dirent:%u %s",
+					parent_fid, entry.c_str());
+			freeReplyObject(reply);
+			reply = (redisReply*) redisCommand(c, "DEL stat:%u", fid);
+			freeReplyObject(reply);
+			reply = (redisReply*) redisCommand(c, "DEL diren:%u ", fid);
+			freeReplyObject(reply);
+			reply = (redisReply*) redisCommand(c, "EXEC");
+			freeReplyObject(reply);
 
 			//check for errors
 			if (c != NULL && c->err) {
@@ -240,11 +264,16 @@ public:
 		string newentry = snewpath.substr(found + 1);
 
 		//redis update
-		redisCommand(c, "MULTI");
-		redisCommand(c, "HDEL dirent:%u %s", oldparent_fid, oldentry.c_str());
-		redisCommand(c, "HSET dirent:%u %s %u ", newparent_fid,
-				newentry.c_str(), fid);
-		redisCommand(c, "EXEC");
+		redisReply* reply = (redisReply*) redisCommand(c, "MULTI");
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "HDEL dirent:%u %s",
+				oldparent_fid, oldentry.c_str());
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "HSET dirent:%u %s %u",
+				newparent_fid, newentry.c_str(), fid);
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "EXEC");
+		freeReplyObject(reply);
 
 		//check for errors
 		if (c != NULL && c->err) {
@@ -271,12 +300,17 @@ public:
 		string entry = spath.substr(found + 1);
 
 		//update redis
-		redisCommand(c, "MULTI");
-		redisCommand(c, "HDEL dirent:%u %s", parent_fid, entry.c_str());
-		redisCommand(c, "DEL stat:%u", fid);
+		redisReply* reply = (redisReply*) redisCommand(c, "MULTI");
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "HDEL dirent:%u %s", parent_fid,
+				entry.c_str());
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "DEL stat:%u", fid);
+		freeReplyObject(reply);
 
 		//commit
-		redisCommand(c, "EXEC");
+		reply = (redisReply*) redisCommand(c, "EXEC");
+		freeReplyObject(reply);
 
 		//check for errors
 		if (c != NULL && c->err) {
@@ -311,20 +345,38 @@ public:
 		string entry = spath.substr(found + 1);
 
 		//update redis
-		redisCommand(c, "MULTI");
-		redisCommand(c, "HSET dirent:%u %s %u", parent_fid, entry.c_str(), fid);
+		redisReply* reply = (redisReply*) redisCommand(c, "MULTI");
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "HSET dirent:%u %s %u",
+				parent_fid, entry.c_str(), fid);
+		freeReplyObject(reply);
 
 		//stat entry
-		redisCommand(c, "HSET stat:%u st_mode %u", fid, mode);
-		redisCommand(c, "HSET stat:%u st_size %u", fid, size);
-		redisCommand(c, "HSET stat:%u st_uid %u", fid, uid);
-		redisCommand(c, "HSET stat:%u st_gid %u", fid, gid);
-		redisCommand(c, "HSET stat:%u st_mtime %u", fid, time(NULL));
-		redisCommand(c, "HSET stat:%u slave_host %s", fid,
+		reply = (redisReply*) redisCommand(c, "HSET stat:%u st_mode %u", fid,
+				mode);
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "HSET stat:%u st_size %u", fid,
+				size);
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "HSET stat:%u st_uid %u", fid,
+				uid);
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "HSET stat:%u st_gid %u", fid,
+				gid);
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "HSET stat:%u st_mtime %u", fid,
+				time(NULL));
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "HSET stat:%u slave_host %s", fid,
 				slave_ip_port.host.c_str());
-		redisCommand(c, "HSET stat:%u slave_port %u", fid, slave_ip_port.port);
+		freeReplyObject(reply);
+		reply = (redisReply*) redisCommand(c, "HSET stat:%u slave_port %u", fid,
+				slave_ip_port.port);
+		freeReplyObject(reply);
+
 		//commit
-		redisCommand(c, "EXEC");
+		reply = (redisReply*) redisCommand(c, "EXEC");
+		freeReplyObject(reply);
 
 		//check for errors
 		if (c != NULL && c->err) {
@@ -335,9 +387,9 @@ public:
 	}
 
 	static slave_info lookup_slave_info(redisContext *c, const char *path) {
+
 		//assume fid exist
 		long long fid = lookup_fid(c, path);
-
 		return lookup_slave_info(c, fid);
 	}
 
@@ -353,7 +405,8 @@ public:
 
 			info.host = stat["slave_host"];
 			info.port = atoi(stat["slave_port"].c_str());
-		}
+		} else
+			freeReplyObject(reply);
 
 		return info;
 	}
@@ -392,7 +445,7 @@ public:
 					//not found
 					return -1;
 				}
-			}else{
+			} else {
 				freeReplyObject(reply);
 			}
 		}

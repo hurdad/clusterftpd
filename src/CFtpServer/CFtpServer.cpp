@@ -636,6 +636,7 @@ CFtpServer::CClientEntry *CFtpServer::AddClient(SOCKET Sock,
 				OnServerEventCb(REDIS_CONNECT_ERROR);
 				return NULL;
 			}
+			freeReplyObject(reply);
 
 			OnClientEventCb(NEW_CLIENT, pClient);
 
@@ -2999,7 +3000,7 @@ bool CFtpServer::CEnumFileInfo::FindNext() {
 		int iDirPathLen = strlen(szDirPath);
 		int iFileNameLen = strlen(dir_entry->d_name);
 		if (iDirPathLen + iFileNameLen >= MAX_PATH) {
-			delete dir_entry;
+			free(dir_entry);
 			return false;
 		}
 
@@ -3018,7 +3019,7 @@ bool CFtpServer::CEnumFileInfo::FindNext() {
 			mode = 0;
 			mtime = 0;
 		}
-		delete dir_entry;
+		free(dir_entry);
 		return true;
 	}
 
