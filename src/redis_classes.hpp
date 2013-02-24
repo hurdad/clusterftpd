@@ -392,6 +392,8 @@ public:
 					//not found
 					return -1;
 				}
+			}else{
+				freeReplyObject(reply);
 			}
 		}
 
