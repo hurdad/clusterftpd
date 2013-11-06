@@ -13,3 +13,13 @@ Metaserver: Single metaserver handles all ftp control channel communication. All
 
 Slaveserver: [Thrift RPC Server] on each server handles transfers to/from clients.
 
+### Gettting Started
+
+
+```
+git clone https://github.com/hurdad/clusterftpd.git
+cd clusterftpd
+./bootstrap
+./configure CPPFLAGS="-DHAVE_INTTYPES_H -DHAVE_NETINET_IN_H"
+make
+```
